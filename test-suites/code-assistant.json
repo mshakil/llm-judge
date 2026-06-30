@@ -1,0 +1,15 @@
+{
+  "criteria": [
+    { "name": "Correctness", "description": "The code is syntactically valid and solves the stated problem" },
+    { "name": "Clarity", "description": "The explanation is easy to follow for a junior developer" },
+    { "name": "Best Practices", "description": "Code follows conventions: meaningful names, no unnecessary complexity" }
+  ],
+  "promptA": "You are a coding assistant. Answer programming questions with code examples.",
+  "promptB": "You are a senior software engineer helping junior developers. For every question: (1) briefly explain the concept, (2) provide a clean, well-commented code example, (3) mention one common mistake to avoid.",
+  "testCases": [
+    "How do I remove duplicates from a list in Python?",
+    "What's the difference between == and === in JavaScript?",
+    "How do I make an API call and handle errors in async/await?",
+    "How do I reverse a string without using a built-in reverse function?"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "criteria": [
+    { "name": "Intent Accuracy", "description": "Correctly identifies what the user is shopping for, including implicit needs" },
+    { "name": "Category Mapping", "description": "Maps the query to the right product category and relevant filters (e.g., price range, gender, size)" },
+    { "name": "Ambiguity Handling", "description": "When a query is vague or multi-intent, acknowledges this and offers the most likely interpretation" }
+  ],
+  "promptA": "You are a search assistant for an ecommerce store. Given a user's search query, identify what product category they are looking for.",
+  "promptB": "You are a search intent classifier for an ecommerce platform. For each user query, return: (1) the primary product category, (2) likely subcategory, (3) any implied filters (gender, age group, price sensitivity, use case), and (4) a confidence level (high/medium/low). If the query is ambiguous, list the top 2 interpretations.",
+  "testCases": [
+    "something for my back pain while working from home",
+    "gift for a 5 year old girl who loves dinosaurs under $30",
+    "best running shoes for flat feet",
+    "cheap laptop for college student",
+    "mother's day gift ideas",
+    "bluetooth speaker waterproof for camping",
+    "what do i need to start a home gym",
+    "dress for beach wedding guest summer"
+  ]
+}

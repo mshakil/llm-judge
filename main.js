@@ -935,53 +935,274 @@ function renderResults(results) {
 function exportReport() {
     if (!lastResults) { showToast('No results to export. Run an evaluation first.', 'error'); return; }
 
+    const criteria = getCriteria();
     const avgA = (lastResults.reduce((s, r) => s + r.judgment.scoreA, 0) / lastResults.length).toFixed(1);
     const avgB = (lastResults.reduce((s, r) => s + r.judgment.scoreB, 0) / lastResults.length).toFixed(1);
-    const winner = parseFloat(avgA) > parseFloat(avgB) ? 'Prompt A' : parseFloat(avgB) > parseFloat(avgA) ? 'Prompt B' : 'Tie';
-
-    let testsHtml = '';
-    lastResults.forEach((r, i) => {
-        const j = r.judgment;
-        testsHtml += `
-        <div style="border:1px solid #e2e8f0;border-radius:8px;margin-bottom:16px;overflow:hidden;">
-            <div style="background:#f8fafc;padding:12px 16px;font-weight:600;display:flex;justify-content:space-between;">
-                <span>Test ${i + 1}: ${escapeHtml(r.testInput)}</span>
-                <span style="color:${j.winner==='A'?'#3b82f6':j.winner==='B'?'#f59e0b':'#64748b'}">${j.winner === 'A' ? 'A Wins' : j.winner === 'B' ? 'B Wins' : 'Tie'} (${j.scoreA} vs ${j.scoreB})</span>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;">
-                <div style="padding:12px 16px;border-right:1px solid #e2e8f0;">
-                    <div style="font-weight:600;color:#3b82f6;margin-bottom:8px;">Prompt A (${j.scoreA}/10)</div>
-                    <div style="font-size:0.85rem;color:#334155;white-space:pre-wrap;margin-bottom:8px;">${escapeHtml(r.responseA)}</div>
-                    <div style="font-size:0.8rem;color:#16a34a;">✅ ${(j.strengthsA||[]).join(' · ')}</div>
-                    <div style="font-size:0.8rem;color:#dc2626;">❌ ${(j.weaknessesA||[]).join(' · ')}</div>
-                </div>
-                <div style="padding:12px 16px;">
-                    <div style="font-weight:600;color:#f59e0b;margin-bottom:8px;">Prompt B (${j.scoreB}/10)</div>
-                    <div style="font-size:0.85rem;color:#334155;white-space:pre-wrap;margin-bottom:8px;">${escapeHtml(r.responseB)}</div>
-                    <div style="font-size:0.8rem;color:#16a34a;">✅ ${(j.strengthsB||[]).join(' · ')}</div>
-                    <div style="font-size:0.8rem;color:#dc2626;">❌ ${(j.weaknessesB||[]).join(' · ')}</div>
-                </div>
-            </div>
-            <div style="background:#f8fafc;padding:10px 16px;font-size:0.8rem;color:#475569;"><strong>Reasoning:</strong> ${escapeHtml(j.reasoning||'')}</div>
-        </div>`;
+    const overallWinner = parseFloat(avgA) > parseFloat(avgB) ? 'A' : parseFloat(avgB) > parseFloat(avgA) ? 'B' : 'Tie';
+    let winsA = 0, winsB = 0, ties = 0;
+    lastResults.forEach(r => {
+        if (r.judgment.winner === 'A') winsA++;
+        else if (r.judgment.winner === 'B') winsB++;
+        else ties++;
     });
 
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>LLM Judge Report</title>
-    <style>body{font-family:'Inter',sans-serif;max-width:900px;margin:0 auto;padding:32px;color:#0f172a;}h1{margin-bottom:4px;}
-    .summary{display:flex;gap:32px;margin:24px 0;padding:24px;background:#f1f5f9;border-radius:12px;text-align:center;}
-    .summary div{flex:1;}.score{font-size:2rem;font-weight:800;}.meta{font-size:0.8rem;color:#64748b;margin-top:16px;}</style></head>
-    <body>
+    const hasConsistency = lastResults.some(r => r.judgment.runs && r.judgment.runs > 1);
+    const avgCA = hasConsistency ? (lastResults.reduce((s, r) => s + (r.judgment.consistencyA || 0), 0) / lastResults.length).toFixed(1) : null;
+    const avgCB = hasConsistency ? (lastResults.reduce((s, r) => s + (r.judgment.consistencyB || 0), 0) / lastResults.length).toFixed(1) : null;
+
+    // Per-criteria averages across all test cases
+    const criteriaAvgHtml = (() => {
+        if (!criteria.length) return '';
+        const critAvgs = criteria.map(c => {
+            const vals = lastResults.map(r => r.judgment.criteria?.[c.name]).filter(Boolean);
+            if (!vals.length) return null;
+            const aAvg = (vals.reduce((s, v) => s + (v.scoreA || 0), 0) / vals.length).toFixed(1);
+            const bAvg = (vals.reduce((s, v) => s + (v.scoreB || 0), 0) / vals.length).toFixed(1);
+            return { name: c.name, aAvg, bAvg };
+        }).filter(Boolean);
+        if (!critAvgs.length) return '';
+        return `
+        <div class="section">
+            <h2 class="section-title">Criteria Breakdown</h2>
+            <table class="crit-table">
+                <thead><tr><th>Criterion</th><th class="col-a">Prompt A avg</th><th class="col-b">Prompt B avg</th><th>Edge</th></tr></thead>
+                <tbody>
+                    ${critAvgs.map(c => {
+                        const aNum = parseFloat(c.aAvg), bNum = parseFloat(c.bAvg);
+                        const edge = aNum > bNum ? `<span class="badge-a">A +${(aNum-bNum).toFixed(1)}</span>` : bNum > aNum ? `<span class="badge-b">B +${(bNum-aNum).toFixed(1)}</span>` : `<span class="badge-tie">Tie</span>`;
+                        return `<tr>
+                            <td class="crit-name-cell">${escapeHtml(c.name)}</td>
+                            <td class="col-a score-cell">${scoreBar(c.aAvg)} ${c.aAvg}</td>
+                            <td class="col-b score-cell">${scoreBar(c.bAvg)} ${c.bAvg}</td>
+                            <td>${edge}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+    })();
+
+    const promptA = document.getElementById('prompt-a').value.trim();
+    const promptB = document.getElementById('prompt-b').value.trim();
+
+    const testsHtml = lastResults.map((r, i) => {
+        const j = r.judgment;
+        const winLabel = j.winner === 'A' ? '<span class="badge-a">A Wins</span>' : j.winner === 'B' ? '<span class="badge-b">B Wins</span>' : '<span class="badge-tie">Tie</span>';
+        const scA = j.scoreA > j.scoreB ? 'score-high' : j.scoreA < j.scoreB ? 'score-low' : '';
+        const scB = j.scoreB > j.scoreA ? 'score-high' : j.scoreB < j.scoreA ? 'score-low' : '';
+
+        const critRowsHtml = j.criteria ? Object.entries(j.criteria).map(([name, c]) => {
+            const csA = (c.scoreA||0) > (c.scoreB||0) ? 'score-high' : (c.scoreA||0) < (c.scoreB||0) ? 'score-low' : '';
+            const csB = (c.scoreB||0) > (c.scoreA||0) ? 'score-high' : (c.scoreB||0) < (c.scoreA||0) ? 'score-low' : '';
+            return `<tr>
+                <td class="crit-name-cell">${escapeHtml(name)}</td>
+                <td class="col-a score-cell ${csA}">${c.scoreA ?? '—'}/10</td>
+                <td class="col-b score-cell ${csB}">${c.scoreB ?? '—'}/10</td>
+                <td class="reasoning-cell">${escapeHtml(c.reasoning || '')}</td>
+            </tr>`;
+        }).join('') : '';
+
+        const mkFeedback = (label, items, cls) => items?.length
+            ? `<div class="feedback-block ${cls}"><span class="fb-label">${label}</span>${items.map(s => `<span class="fb-item">${escapeHtml(s)}</span>`).join('')}</div>`
+            : '';
+
+        return `
+        <div class="test-card">
+            <div class="test-card-header">
+                <span class="test-num">Test ${i + 1}</span>
+                <span class="test-input-text">${escapeHtml(r.testInput)}</span>
+                ${winLabel}
+            </div>
+            ${critRowsHtml ? `
+            <table class="crit-table inner-crit-table">
+                <thead><tr><th>Criterion</th><th class="col-a">A</th><th class="col-b">B</th><th>Reasoning</th></tr></thead>
+                <tbody>${critRowsHtml}</tbody>
+            </table>` : ''}
+            <div class="response-grid">
+                <div class="response-col">
+                    <div class="response-header">
+                        <span class="col-a-label">Prompt A</span>
+                        <span class="score-pill ${scA}">${j.scoreA}/10</span>
+                    </div>
+                    <div class="response-body">${escapeHtml(r.responseA)}</div>
+                    ${mkFeedback('Strengths', j.strengthsA, 'strengths')}
+                    ${mkFeedback('Weaknesses', j.weaknessesA, 'weaknesses')}
+                </div>
+                <div class="response-col">
+                    <div class="response-header">
+                        <span class="col-b-label">Prompt B</span>
+                        <span class="score-pill ${scB}">${j.scoreB}/10</span>
+                    </div>
+                    <div class="response-body">${escapeHtml(r.responseB)}</div>
+                    ${mkFeedback('Strengths', j.strengthsB, 'strengths')}
+                    ${mkFeedback('Weaknesses', j.weaknessesB, 'weaknesses')}
+                </div>
+            </div>
+            ${j.reasoning ? `<div class="reasoning-block"><span class="reasoning-label">Judge's Reasoning</span> ${escapeHtml(j.reasoning)}</div>` : ''}
+        </div>`;
+    }).join('');
+
+    const verdictColor = overallWinner === 'A' ? '#3b82f6' : overallWinner === 'B' ? '#f59e0b' : '#8b5cf6';
+    const verdictText = overallWinner === 'A' ? '🏆 Prompt A Wins' : overallWinner === 'B' ? '🏆 Prompt B Wins' : '🤝 Tie';
+    const isSameJudge = judgeProvider === activeProvider && judgeModel === activeModel;
+    const judgeLabel = isSameJudge ? `${judgeModel} (self-judged)` : `${judgeModel} (${PROVIDERS[judgeProvider].name})`;
+
+    function scoreBar(val) {
+        const pct = Math.round(parseFloat(val) * 10);
+        return `<span class="mini-bar"><span class="mini-bar-fill" style="width:${pct}%"></span></span>`;
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Judge Report — ${new Date().toLocaleDateString()}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8fafc;color:#0f172a;font-size:14px;line-height:1.5}
+a{color:inherit}
+.page{max-width:960px;margin:0 auto;padding:32px 24px 64px}
+/* Header */
+.report-header{background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#f1f5f9;border-radius:16px;padding:32px;margin-bottom:24px}
+.report-header h1{font-size:1.6rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:4px}
+.report-meta{font-size:0.8rem;color:#94a3b8;margin-top:12px;display:flex;flex-wrap:wrap;gap:16px}
+.report-meta span{display:flex;align-items:center;gap:6px}
+.meta-dot{width:6px;height:6px;border-radius:50%;background:#3b82f6;display:inline-block}
+/* Summary */
+.summary-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:0;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:24px}
+.summary-cell{padding:24px;text-align:center}
+.summary-cell.verdict-cell{background:#f8fafc;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.summary-label{font-size:0.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#64748b;display:block;margin-bottom:8px}
+.summary-score{font-size:3rem;font-weight:800;line-height:1;display:block}
+.score-a-color{color:#3b82f6}.score-b-color{color:#f59e0b}
+.verdict-text{font-size:1.3rem;font-weight:700;color:${verdictColor};margin-bottom:8px}
+.tally{font-size:0.8rem;color:#64748b;display:flex;gap:12px;margin-top:4px}
+.tally-a{color:#3b82f6;font-weight:600}.tally-b{color:#f59e0b;font-weight:600}
+/* Consistency */
+.consistency-row{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:0.85rem;color:#1e40af}
+/* Prompts */
+.prompts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.prompt-box{background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
+.prompt-box-header{padding:10px 14px;font-size:0.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid #e2e8f0}
+.prompt-box-header.pa{background:#eff6ff;color:#3b82f6}.prompt-box-header.pb{background:#fffbeb;color:#b45309}
+.prompt-box-body{padding:12px 14px;font-size:0.82rem;color:#334155;white-space:pre-wrap;max-height:180px;overflow:auto}
+/* Section */
+.section{margin-bottom:24px}
+.section-title{font-size:1rem;font-weight:700;margin-bottom:12px;color:#0f172a;display:flex;align-items:center;gap:8px}
+.section-title::before{content:'';display:block;width:3px;height:1em;background:#6366f1;border-radius:2px}
+/* Tables */
+.crit-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;font-size:0.82rem}
+.crit-table thead tr{background:#f8fafc}
+.crit-table th{padding:10px 14px;text-align:left;font-weight:600;color:#64748b;font-size:0.72rem;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid #e2e8f0}
+.crit-table td{padding:10px 14px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+.crit-table tr:last-child td{border-bottom:none}
+.crit-name-cell{font-weight:600;color:#1e293b}
+.score-cell{font-weight:700;font-size:0.85rem}
+.col-a th,.col-a{color:#3b82f6}.col-b th,.col-b{color:#f59e0b}
+.reasoning-cell{color:#475569;font-size:0.8rem}
+.score-high{color:#16a34a!important}.score-low{color:#dc2626!important}
+/* Mini bar */
+.mini-bar{display:inline-block;width:40px;height:6px;background:#e2e8f0;border-radius:3px;vertical-align:middle;margin-right:4px;overflow:hidden}
+.mini-bar-fill{display:block;height:100%;background:#6366f1;border-radius:3px}
+/* Badges */
+.badge-a,.badge-b,.badge-tie{display:inline-block;padding:2px 8px;border-radius:99px;font-size:0.72rem;font-weight:700}
+.badge-a{background:#eff6ff;color:#3b82f6}.badge-b{background:#fffbeb;color:#b45309}.badge-tie{background:#f1f5f9;color:#64748b}
+/* Test cards */
+.test-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:20px}
+.test-card-header{background:#f8fafc;padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #e2e8f0;flex-wrap:wrap}
+.test-num{font-size:0.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;white-space:nowrap}
+.test-input-text{font-weight:600;color:#0f172a;flex:1;font-size:0.88rem}
+.inner-crit-table{border:none;border-radius:0;border-bottom:1px solid #e2e8f0}
+.inner-crit-table th,.inner-crit-table td{border-bottom:1px solid #f1f5f9}
+/* Response grid */
+.response-grid{display:grid;grid-template-columns:1fr 1fr}
+.response-col{padding:16px 18px;border-right:1px solid #f1f5f9}
+.response-col:last-child{border-right:none}
+.response-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.col-a-label{font-weight:700;font-size:0.78rem;color:#3b82f6;text-transform:uppercase;letter-spacing:.06em}
+.col-b-label{font-weight:700;font-size:0.78rem;color:#f59e0b;text-transform:uppercase;letter-spacing:.06em}
+.score-pill{font-size:0.78rem;font-weight:700;padding:2px 8px;border-radius:99px;background:#f1f5f9;color:#475569}
+.score-pill.score-high{background:#dcfce7;color:#16a34a}
+.score-pill.score-low{background:#fee2e2;color:#dc2626}
+.response-body{font-size:0.82rem;color:#334155;white-space:pre-wrap;line-height:1.6;margin-bottom:10px}
+/* Feedback */
+.feedback-block{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start}
+.fb-label{font-size:0.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-right:4px;padding-top:2px;white-space:nowrap}
+.strengths .fb-label{color:#16a34a}.weaknesses .fb-label{color:#dc2626}
+.fb-item{font-size:0.75rem;padding:2px 7px;border-radius:99px}
+.strengths .fb-item{background:#dcfce7;color:#166534}.weaknesses .fb-item{background:#fee2e2;color:#991b1b}
+/* Reasoning */
+.reasoning-block{background:#f8fafc;border-top:1px solid #e2e8f0;padding:12px 18px;font-size:0.82rem;color:#475569;line-height:1.6}
+.reasoning-label{font-weight:600;color:#0f172a;margin-right:6px}
+/* Footer */
+.report-footer{text-align:center;margin-top:48px;font-size:0.75rem;color:#94a3b8}
+@media print{body{background:#fff}.page{padding:16px}.report-header{background:#0f172a!important;-webkit-print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<div class="page">
+
+    <div class="report-header">
         <h1>⚖️ LLM Judge — Evaluation Report</h1>
-        <p style="color:#64748b;">Generated on ${new Date().toLocaleString()} · Provider: ${PROVIDERS[activeProvider].name} · Model: ${activeModel}</p>
-        <div class="summary">
-            <div><div style="font-size:0.8rem;color:#64748b;">PROMPT A AVG</div><div class="score" style="color:#3b82f6;">${avgA}</div></div>
-            <div><div style="font-size:0.8rem;color:#64748b;">VERDICT</div><div class="score" style="color:#8b5cf6;">🏆 ${winner}</div></div>
-            <div><div style="font-size:0.8rem;color:#64748b;">PROMPT B AVG</div><div class="score" style="color:#f59e0b;">${avgB}</div></div>
+        <div class="report-meta">
+            <span><span class="meta-dot"></span> ${new Date().toLocaleString()}</span>
+            <span><span class="meta-dot" style="background:#6366f1"></span> Responder: ${escapeHtml(PROVIDERS[activeProvider].name)} / ${escapeHtml(activeModel)}</span>
+            <span><span class="meta-dot" style="background:#8b5cf6"></span> Judge: ${escapeHtml(judgeLabel)}</span>
+            <span><span class="meta-dot" style="background:#10b981"></span> ${lastResults.length} test case${lastResults.length !== 1 ? 's' : ''} · ${criteria.length} criteri${criteria.length !== 1 ? 'a' : 'on'}</span>
         </div>
-        <h2>Detailed Results</h2>
+    </div>
+
+    <div class="summary-grid">
+        <div class="summary-cell">
+            <span class="summary-label">Prompt A Average</span>
+            <span class="summary-score score-a-color">${avgA}</span>
+            <span style="font-size:0.75rem;color:#64748b;margin-top:4px;display:block">out of 10</span>
+        </div>
+        <div class="summary-cell verdict-cell">
+            <div class="verdict-text">${verdictText}</div>
+            <div class="tally">
+                <span class="tally-a">A: ${winsA}W</span>
+                <span style="color:#64748b">·</span>
+                <span class="tally-b">B: ${winsB}W</span>
+                <span style="color:#64748b">·</span>
+                <span>${ties} Tie${ties !== 1 ? 's' : ''}</span>
+            </div>
+        </div>
+        <div class="summary-cell">
+            <span class="summary-label">Prompt B Average</span>
+            <span class="summary-score score-b-color">${avgB}</span>
+            <span style="font-size:0.75rem;color:#64748b;margin-top:4px;display:block">out of 10</span>
+        </div>
+    </div>
+
+    ${hasConsistency ? `<div class="consistency-row">📊 Consistency across ${lastResults[0].judgment.runs} runs — Prompt A: <strong>${avgCA}/10</strong> · Prompt B: <strong>${avgCB}/10</strong></div>` : ''}
+
+    <div class="prompts-grid">
+        <div class="prompt-box">
+            <div class="prompt-box-header pa">Prompt A — Baseline</div>
+            <div class="prompt-box-body">${escapeHtml(promptA || '(not captured)')}</div>
+        </div>
+        <div class="prompt-box">
+            <div class="prompt-box-header pb">Prompt B — Challenger</div>
+            <div class="prompt-box-body">${escapeHtml(promptB || '(not captured)')}</div>
+        </div>
+    </div>
+
+    ${criteriaAvgHtml}
+
+    <div class="section">
+        <h2 class="section-title">Test-by-Test Results</h2>
         ${testsHtml}
-        <div class="meta">Report generated by LLM Judge — Prompt A/B Evaluator</div>
-    </body></html>`;
+    </div>
+
+    <div class="report-footer">Generated by <strong>LLM Judge</strong> — Prompt A/B Evaluator</div>
+</div>
+</body></html>`;
+
+    function scoreBar(val) {
+        const pct = Math.round(parseFloat(val) * 10);
+        return `<span class="mini-bar"><span class="mini-bar-fill" style="width:${pct}%"></span></span>`;
+    }
 
     const blob = new Blob([html], { type: 'text/html' });
     const a = document.createElement('a');
@@ -1046,7 +1267,7 @@ async function generateShareUrl() {
         const payload = {
             v: 1,
             meta: { provider: activeProvider, model: activeModel, judgeProvider, judgeModel, timestamp: Date.now() },
-            criteria: document.getElementById('criteria-input').value,
+            criteria: getCriteria(),
             promptA: document.getElementById('prompt-a').value,
             promptB: document.getElementById('prompt-b').value,
             results: lastResults
@@ -1054,10 +1275,15 @@ async function generateShareUrl() {
         const encoded = await compressToBase64Url(payload);
         const url = `${location.origin}${location.pathname}#share=${encoded}`;
         history.replaceState(null, '', `#share=${encoded}`);
-        await navigator.clipboard.writeText(url);
-        showToast('Share link copied to clipboard!', 'success');
-    } catch {
-        showToast('Could not copy link. Try exporting the report instead.', 'error');
+        try {
+            await navigator.clipboard.writeText(url);
+            showToast('Share link copied to clipboard!', 'success');
+        } catch {
+            showToast('Link updated in address bar — copy it from there.', 'info');
+        }
+    } catch (err) {
+        showToast('Could not generate share link.', 'error');
+        console.error(err);
     } finally {
         btn.disabled = false;
         btn.innerHTML = orig;

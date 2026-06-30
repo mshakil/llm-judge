@@ -71,15 +71,18 @@
                 <span class="badge">Prompt A/B Evaluator</span>
             </div>
             <div class="top-bar-right">
-                <div class="provider-switch" id="top-provider-switch">
-                    <button class="provider-chip active" data-provider="gemini">
-                        <span class="provider-dot gemini-dot"></span> Gemini
-                    </button>
-                    <button class="provider-chip" data-provider="claude">
-                        <span class="provider-dot claude-dot"></span> Claude
-                    </button>
+                <div class="model-picker">
+                    <div class="provider-switch" id="top-provider-switch">
+                        <button class="provider-chip active" data-provider="gemini">
+                            <span class="provider-dot gemini-dot"></span> Gemini
+                        </button>
+                        <button class="provider-chip" data-provider="claude">
+                            <span class="provider-dot claude-dot"></span> Claude
+                        </button>
+                    </div>
+                    <div class="model-picker-divider"></div>
+                    <select class="model-select" id="model-select"></select>
                 </div>
-                <select class="model-select" id="model-select"></select>
                 <span class="api-status" id="api-status">● Connected</span>
                 <button class="btn-icon" id="history-btn" title="History">📜</button>
                 <button class="btn-icon" id="change-key-btn" title="Change API Key">🔑</button>
@@ -107,6 +110,7 @@
                 <div class="criterion-header">
                     <span>Name</span>
                     <span>What to look for</span>
+                    <span></span>
                 </div>
                 <div id="criteria-container">
                     <div class="criterion-row">
@@ -147,8 +151,11 @@
                     <span class="step-badge">3</span>
                     <h2>Test Inputs</h2>
                     <div class="test-actions">
-                        <button class="btn-small" id="import-tests-btn" title="Import test suite">📥 Import</button>
-                        <button class="btn-small" id="export-tests-btn" title="Export test suite">📤 Export</button>
+                        <div class="test-file-actions">
+                            <button class="btn-small" id="import-tests-btn" title="Import test suite">📥 Import</button>
+                            <button class="btn-small" id="export-tests-btn" title="Export test suite">📤 Export</button>
+                        </div>
+                        <div class="test-actions-sep"></div>
                         <button class="btn-add" id="add-test-btn">+ Add</button>
                     </div>
                 </div>
@@ -194,7 +201,7 @@
                         </div>
                         <div class="setting-item" style="grid-column: 1 / -1;">
                             <label>Judge Model <span class="judge-badge">scores outputs</span></label>
-                            <div class="judge-model-controls">
+                            <div class="model-picker">
                                 <div class="provider-switch" id="judge-provider-switch">
                                     <button class="provider-chip active" data-provider="gemini">
                                         <span class="provider-dot gemini-dot"></span> Gemini
@@ -203,6 +210,7 @@
                                         <span class="provider-dot claude-dot"></span> Claude
                                     </button>
                                 </div>
+                                <div class="model-picker-divider"></div>
                                 <select class="model-select" id="judge-model-select"></select>
                             </div>
                             <div class="setting-hint">Using a stronger or different model than the responder reduces self-evaluation bias.</div>

@@ -1,0 +1,15 @@
+{
+  "criteria": [
+    { "name": "Brevity", "description": "Gets to the point quickly, no filler phrases or padding" },
+    { "name": "Engagement", "description": "Opening hook makes the reader want to continue" },
+    { "name": "Clarity", "description": "Anyone unfamiliar with the topic can understand it" }
+  ],
+  "promptA": "You are a content writer. Write clear, informative responses.",
+  "promptB": "You are a content writer for a tech blog. Write punchy, jargon-free copy. Lead with the most interesting insight. Keep responses under 120 words.",
+  "testCases": [
+    "Write a short intro paragraph explaining what large language models are.",
+    "Write a LinkedIn post announcing a new product launch for a project management app.",
+    "Summarize why sleep is important for productivity in 3-4 sentences.",
+    "Write a compelling subject line and opening sentence for a newsletter about AI trends."
+  ]
+}

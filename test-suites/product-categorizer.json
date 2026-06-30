@@ -1,0 +1,19 @@
+{
+  "criteria": [
+    { "name": "Accuracy", "description": "The assigned category and subcategory are correct for the product" },
+    { "name": "Specificity", "description": "Uses the most precise subcategory available, not a vague parent category" },
+    { "name": "Reasoning", "description": "Briefly explains why the category was chosen, especially for ambiguous items" }
+  ],
+  "promptA": "You are a product categorization assistant. Given a product name or description, assign it to the most appropriate category.",
+  "promptB": "You are a product categorization engine for an ecommerce platform. For each product, return: (1) a top-level category, (2) a subcategory, and (3) one sentence explaining your choice. Use the most specific subcategory possible. When a product could belong to multiple categories, pick the one that matches its primary use case.",
+  "testCases": [
+    "Wireless Bluetooth Earbuds with Active Noise Cancellation and 30-hour battery life",
+    "Yoga Mat — 6mm thick, non-slip surface, eco-friendly TPE material",
+    "Men's Running Shoes with arch support and breathable mesh upper",
+    "Stainless Steel French Press Coffee Maker, 34 oz",
+    "USB-C to HDMI Adapter, 4K 60Hz, compatible with MacBook and iPad",
+    "Baby Teething Ring — BPA-free silicone, freezer safe",
+    "Portable Power Bank 20000mAh with 65W fast charging and LED display",
+    "Cast Iron Skillet 12-inch, pre-seasoned, oven safe up to 500°F"
+  ]
+}

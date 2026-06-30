@@ -1,0 +1,15 @@
+{
+  "criteria": [
+    { "name": "Tone", "description": "Warm, professional, and non-defensive even under pressure" },
+    { "name": "Resolution", "description": "Directly addresses the problem with a clear next step" },
+    { "name": "Empathy", "description": "Acknowledges the customer's frustration before jumping to solutions" }
+  ],
+  "promptA": "You are a customer support agent for an e-commerce store. Be professional and helpful.",
+  "promptB": "You are a customer support agent for an e-commerce store. Always start by acknowledging the customer's frustration, then offer a concrete solution with a timeline. Sign off warmly.",
+  "testCases": [
+    "My order was supposed to arrive 3 days ago and it still hasn't shown up. This is unacceptable.",
+    "I was charged twice for the same order. I need this fixed immediately.",
+    "The product I received looks nothing like the photos on your website. I want a refund.",
+    "I've been waiting 20 minutes on hold. Can someone actually help me?"
+  ]
+}

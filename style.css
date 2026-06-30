@@ -84,7 +84,7 @@ body {
 .claude-dot { background: #d97706; }
 
 /* ========== PROVIDER SWITCH ========== */
-.provider-switch { display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 10px; border: 1px solid var(--glass-border); }
+.provider-switch { display: flex; gap: 4px; padding: 0; background: none; border: none; }
 
 .provider-chip {
     display: flex; align-items: center; gap: 6px; padding: 6px 14px;
@@ -95,17 +95,31 @@ body {
 .provider-chip:hover { color: var(--text-muted); }
 .provider-chip.active { background: rgba(255,255,255,0.08); color: var(--text-main); }
 
+/* ========== MODEL PICKER (provider toggle + model select unified) ========== */
+.model-picker {
+    display: flex; align-items: center; gap: 0;
+    background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
+    border-radius: 10px; padding: 3px;
+    transition: border-color 0.2s;
+}
+.model-picker:focus-within { border-color: var(--accent-purple); box-shadow: 0 0 0 3px rgba(139,92,246,0.12); }
+
+.model-picker-divider {
+    width: 1px; height: 20px; flex-shrink: 0;
+    background: var(--glass-border); margin: 0 6px;
+}
+
 /* ========== MODEL SELECT ========== */
 .model-select {
-    background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
-    color: var(--text-main); padding: 6px 12px; border-radius: 8px;
-    font-family: inherit; font-size: 0.8rem; cursor: pointer;
-    appearance: none; min-width: 160px;
+    background-color: transparent;
     background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23cbd5e1%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E");
     background-repeat: no-repeat; background-position: right 10px center; background-size: 8px;
-    padding-right: 28px;
+    border: none; color: var(--text-main);
+    padding: 5px 28px 5px 8px; border-radius: 6px;
+    font-family: inherit; font-size: 0.8rem; cursor: pointer;
+    appearance: none; min-width: 150px;
 }
-.model-select:focus { outline: none; border-color: var(--accent-purple); }
+.model-select:focus { outline: none; box-shadow: none; }
 .model-select option { background: #1e293b; color: var(--text-main); }
 
 /* ========== TOP BAR ========== */
@@ -158,11 +172,16 @@ textarea { resize: vertical; }
 .prompt-b { border-color: rgba(245,158,11,0.15); }
 
 /* ========== CRITERIA INPUT ========== */
-.criterion-header {
+.criterion-header,
+.criterion-row {
     display: grid;
-    grid-template-columns: 152px 1fr;
+    grid-template-columns: 160px 1fr 30px;
     gap: 8px;
-    padding: 0 38px 6px 0;
+    align-items: center;
+}
+
+.criterion-header {
+    padding-bottom: 6px;
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -170,15 +189,9 @@ textarea { resize: vertical; }
 }
 
 .criterion-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
     margin-bottom: 8px;
     animation: slideIn 0.2s ease;
 }
-
-.criterion-name { width: 152px; flex-shrink: 0; }
-.criterion-desc { flex: 1; }
 
 /* ========== CRITERIA BREAKDOWN ========== */
 .crit-breakdown {
@@ -213,7 +226,9 @@ textarea { resize: vertical; }
 .crit-reasoning { color: var(--text-muted); line-height: 1.5; }
 
 /* ========== TEST CASES ========== */
-.test-actions { display: flex; gap: 6px; margin-left: auto; }
+.test-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.test-file-actions { display: flex; gap: 4px; }
+.test-actions-sep { width: 1px; height: 18px; background: var(--glass-border); flex-shrink: 0; }
 .btn-small { background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--glass-border); padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; font-family: inherit; }
 .btn-small:hover { background: rgba(255,255,255,0.08); color: var(--text-main); }
 .btn-add { background: rgba(139,92,246,0.1); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2); padding: 5px 14px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: all 0.2s; }
@@ -364,6 +379,8 @@ input[type="range"]::-webkit-slider-thumb { appearance: none; width: 18px; heigh
     .main-content { padding: 16px 10px; }
     .history-panel { width: 85vw; right: -85vw; }
     .provider-switch { display: none; }
+    .model-picker-divider { display: none; }
+    .model-picker { background: none; border: 1px solid var(--glass-border); border-radius: 8px; }
 }
 
 /* ========== MODAL MODES ========== */
@@ -438,13 +455,9 @@ input[type="range"]::-webkit-slider-thumb { appearance: none; width: 18px; heigh
     vertical-align: middle;
 }
 
-.judge-model-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.setting-item .model-picker {
     margin-top: 8px;
     margin-bottom: 4px;
-    flex-wrap: wrap;
 }
 
 .judge-info {

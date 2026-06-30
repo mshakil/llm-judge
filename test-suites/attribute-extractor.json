@@ -1,0 +1,19 @@
+{
+  "criteria": [
+    { "name": "Completeness", "description": "All relevant attributes present in the description are extracted" },
+    { "name": "Structure", "description": "Output is consistently formatted and machine-readable (e.g., key-value pairs or JSON)" },
+    { "name": "No Hallucination", "description": "Only attributes explicitly stated or clearly implied in the description are included — nothing invented" }
+  ],
+  "promptA": "You are a product data assistant. Extract the key attributes from the product description provided.",
+  "promptB": "You are a product data extraction engine. Given a product description, extract structured attributes as a JSON object. Only include attributes explicitly mentioned. Common fields: brand, color, material, size/dimensions, weight, compatibility, key_features (array). Omit fields that are not mentioned.",
+  "testCases": [
+    "Sony WH-1000XM5 Over-Ear Headphones — Industry-leading noise cancellation, 30-hour battery, USB-C charging, foldable design, available in Black and Silver.",
+    "LEGO Technic 4x4 Mercedes-Benz Zetros Trial Truck — 2129 pieces, suitable for ages 10+, measures 13 inches tall when built.",
+    "Organic Cotton Queen Sheet Set — 400 thread count, includes flat sheet, fitted sheet, and 2 pillowcases. Colors: White, Sage, Blush. Machine washable.",
+    "NutriBlend Pro 1200W Blender — 72 oz BPA-free pitcher, 6-blade stainless steel assembly, 3 speed settings + pulse, dishwasher-safe parts.",
+    "Nike Air Max 270 Men's Shoe — Lightweight mesh upper, Max Air heel unit, rubber outsole. Available in sizes 7–15 US.",
+    "Vitamin D3 + K2 Supplement — 5000 IU D3, 100mcg K2 (MK-7), 90 softgels per bottle, non-GMO, gluten-free, soy-free.",
+    "Ergonomic Mesh Office Chair with lumbar support, adjustable armrests, headrest, and seat height 17–21 inches. Weight capacity: 300 lbs.",
+    "4K Security Camera, outdoor, IP67 weatherproof, night vision up to 100ft, motion detection, 2-way audio, works with Alexa and Google Home."
+  ]
+}
