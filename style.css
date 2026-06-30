@@ -298,7 +298,7 @@ textarea { resize: vertical; }
 .chevron { margin-left: auto; font-size: 0.7rem; color: var(--text-dim); transition: transform 0.3s; }
 .chevron.open { transform: rotate(180deg); }
 .settings-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; padding: 0; }
-.settings-body.open { max-height: 200px; padding-top: 16px; }
+.settings-body.open { max-height: 800px; padding-top: 16px; }
 .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .setting-item label { font-size: 0.85rem; color: var(--text-label); display: block; margin-bottom: 8px; }
 .setting-item label span { color: var(--accent-purple); font-weight: 600; }
@@ -472,6 +472,71 @@ input[type="range"]::-webkit-slider-thumb { appearance: none; width: 18px; heigh
     transition: color 0.2s; display: block; width: 100%; text-align: center;
 }
 .btn-text-link:hover { color: var(--text-main); }
+
+/* ========== CHECKBOX LABEL ========== */
+.checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; color: var(--text-label); }
+.checkbox-label input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent-purple); cursor: pointer; flex-shrink: 0; }
+
+/* ========== JUDGE PERSONA ========== */
+.judge-persona-input { min-height: 72px; font-size: 0.82rem; resize: vertical; margin-top: 8px; }
+
+/* ========== RUN EXTRAS ========== */
+.run-extras { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
+.keyboard-hint { color: var(--text-dim); font-size: 0.72rem; margin-top: 8px; letter-spacing: 0.01em; }
+kbd { display: inline-block; background: var(--surface-raised); border: 1px solid var(--glass-border); border-radius: 4px; padding: 1px 5px; font-family: inherit; font-size: 0.7rem; color: var(--text-muted); }
+
+/* ========== CANCEL BUTTON ========== */
+.btn-cancel { background: rgba(239,68,68,0.1); color: var(--accent-red); border: 1px solid rgba(239,68,68,0.25); padding: 5px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-left: auto; font-family: inherit; }
+.btn-cancel:hover { background: rgba(239,68,68,0.2); }
+
+/* ========== PROMPT VERSIONING ========== */
+.version-controls { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.version-select { background: var(--input-bg); border: 1px solid var(--glass-border); color: var(--text-muted); padding: 4px 8px; border-radius: 6px; font-family: inherit; font-size: 0.72rem; cursor: pointer; max-width: 130px; }
+.btn-ver-save { padding: 4px 8px; font-size: 0.75rem; }
+
+/* ========== TREND CHART ========== */
+#trend-chart-container { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--glass-border); }
+.trend-chart-wrap { display: flex; align-items: center; gap: 12px; }
+.trend-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); white-space: nowrap; }
+.trend-legend { display: flex; flex-direction: column; gap: 3px; font-size: 0.72rem; white-space: nowrap; }
+
+/* ========== RADAR CHART ========== */
+.radar-container { padding: 20px; margin-bottom: 16px; text-align: center; }
+.radar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.radar-header h3 { font-size: 0.95rem; font-weight: 600; }
+.radar-legend { display: flex; gap: 16px; font-size: 0.8rem; }
+
+/* ========== SWEEP CHART ========== */
+.sweep-container { padding: 20px; margin-bottom: 16px; }
+.sweep-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sweep-header h3 { font-size: 0.95rem; font-weight: 600; }
+.sweep-legend { display: flex; gap: 16px; font-size: 0.8rem; }
+.sweep-scores { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.sweep-temp-col { text-align: center; font-size: 0.75rem; background: var(--surface-raised); border-radius: 6px; padding: 6px 10px; border: 1px solid var(--glass-border); }
+.sweep-temp-label { font-weight: 600; color: var(--text-dim); margin-bottom: 4px; font-size: 0.7rem; }
+
+/* ========== WORD DIFF ========== */
+.word-diff-section { padding: 14px 20px; border-top: 1px solid var(--glass-border); background: var(--surface-inset); }
+.diff-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.diff-col { }
+.diff-col-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.diff-col-label.col-a { color: var(--accent-a); }
+.diff-col-label.col-b { color: var(--accent-b); }
+.diff-text { font-size: 0.8rem; line-height: 1.7; color: var(--text-muted); white-space: pre-wrap; word-wrap: break-word; }
+del.diff-del { background: rgba(239,68,68,0.15); color: var(--accent-red); text-decoration: line-through; border-radius: 2px; padding: 0 2px; }
+ins.diff-ins { background: rgba(16,185,129,0.15); color: var(--accent-green); text-decoration: none; border-radius: 2px; padding: 0 2px; }
+
+/* ========== COLLAPSIBLE CARDS ========== */
+.result-card-header { cursor: pointer; }
+.btn-collapse { background: none; border: none; color: var(--text-dim); font-size: 0.85rem; cursor: pointer; padding: 2px 4px; transition: transform 0.2s; flex-shrink: 0; }
+.result-card.collapsed .result-body,
+.result-card.collapsed .crit-breakdown,
+.result-card.collapsed .result-reasoning,
+.result-card.collapsed .word-diff-section { display: none !important; }
+.result-card.collapsed .btn-collapse { transform: rotate(-90deg); }
+.result-header-actions { display: flex; align-items: center; gap: 8px; }
+.btn-diff-toggle { font-size: 0.72rem; padding: 3px 10px; }
+.btn-diff-toggle.active { background: rgba(99,102,241,0.15); color: var(--accent-purple); border-color: rgba(99,102,241,0.3); }
 
 /* ========== RESPONSIVE ========== */
 @media (max-width: 768px) {

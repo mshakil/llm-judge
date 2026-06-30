@@ -99,6 +99,7 @@ let sessionPassphrase = '';
 let judgeProvider = localStorage.getItem('llm_judge_judge_provider') || activeProvider;
 let judgeModel = localStorage.getItem('llm_judge_judge_model') || PROVIDERS[judgeProvider].defaultModel;
 let lastResults = null;
+let cancelRequested = false;
 
 // ============================================================
 // DOM Ready
@@ -160,6 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('import-tests-btn').addEventListener('click', () => document.getElementById('import-file-input').click());
     document.getElementById('import-file-input').addEventListener('change', importTestSuite);
     document.getElementById('export-tests-btn').addEventListener('click', exportTestSuite);
+    document.getElementById('import-csv-btn').addEventListener('click', () => document.getElementById('csv-import-input').click());
+    document.getElementById('csv-import-input').addEventListener('change', importCsvTestCases);
 
     // Settings toggle
     document.getElementById('toggle-settings').addEventListener('click', toggleSettings);
@@ -192,11 +195,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('run-btn').addEventListener('click', runEvaluation);
     document.getElementById('export-report-btn').addEventListener('click', exportReport);
     document.getElementById('share-results-btn').addEventListener('click', generateShareUrl);
+    document.getElementById('share-setup-btn').addEventListener('click', generateSetupUrl);
     document.getElementById('reset-results-btn').addEventListener('click', resetResults);
     document.getElementById('share-banner-close').addEventListener('click', () => {
         document.getElementById('share-banner').style.display = 'none';
         history.replaceState(null, '', location.pathname);
     });
+
+    // Cancel
+    document.getElementById('cancel-btn').addEventListener('click', () => { cancelRequested = true; });
+
+    // Prompt Versioning
+    document.getElementById('save-ver-a').addEventListener('click', () => savePromptVersion('a'));
+    document.getElementById('save-ver-b').addEventListener('click', () => savePromptVersion('b'));
+    document.getElementById('version-select-a').addEventListener('change', (e) => { loadPromptVersion('a', e.target.value); });
+    document.getElementById('version-select-b').addEventListener('change', (e) => { loadPromptVersion('b', e.target.value); });
+
+    // Result card interactions (collapse + diff)
+    document.getElementById('results-container').addEventListener('click', handleResultCardClick);
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', handleKeyboardShortcuts);
 
     // Theme
     document.getElementById('theme-btn').addEventListener('click', toggleTheme);
@@ -205,7 +224,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Init
     syncProviderUI();
     populateModelSelect();
+    populateVersionSelect('a');
+    populateVersionSelect('b');
     loadFromShareUrl();
+
+    // Restore new settings from localStorage
+    document.getElementById('blind-mode-check').checked = localStorage.getItem('llm_judge_blind_mode') === '1';
+    document.getElementById('temp-sweep-check').checked = localStorage.getItem('llm_judge_temp_sweep') === '1';
+    document.getElementById('judge-persona').value = localStorage.getItem('llm_judge_judge_persona') || '';
+    document.getElementById('blind-mode-check').addEventListener('change', (e) => localStorage.setItem('llm_judge_blind_mode', e.target.checked ? '1' : '0'));
+    document.getElementById('temp-sweep-check').addEventListener('change', (e) => localStorage.setItem('llm_judge_temp_sweep', e.target.checked ? '1' : '0'));
+    document.getElementById('judge-persona').addEventListener('input', (e) => localStorage.setItem('llm_judge_judge_persona', e.target.value));
 });
 
 // ============================================================
@@ -605,8 +634,8 @@ async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
     }
 }
 
-async function callLLM(systemPrompt, userMessage) {
-    const temp = parseFloat(document.getElementById('temperature-slider').value);
+async function callLLM(systemPrompt, userMessage, overrideTemp) {
+    const temp = overrideTemp !== undefined ? overrideTemp : parseFloat(document.getElementById('temperature-slider').value);
     return activeProvider === 'gemini' ? callGemini(systemPrompt, userMessage, temp) : callClaude(systemPrompt, userMessage, temp);
 }
 

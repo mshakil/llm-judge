@@ -133,6 +133,10 @@
                         <div class="prompt-card-header">
                             <span class="prompt-label label-a">Prompt A</span>
                             <span class="prompt-tag">Baseline</span>
+                            <div class="version-controls">
+                                <button class="btn-small btn-ver-save" id="save-ver-a" title="Save current prompt as a named version">💾</button>
+                                <select class="version-select" id="version-select-a"><option value="">Versions…</option></select>
+                            </div>
                         </div>
                         <textarea id="prompt-a" placeholder="Paste your current/baseline system prompt here..."></textarea>
                     </div>
@@ -140,6 +144,10 @@
                         <div class="prompt-card-header">
                             <span class="prompt-label label-b">Prompt B</span>
                             <span class="prompt-tag">Challenger</span>
+                            <div class="version-controls">
+                                <button class="btn-small btn-ver-save" id="save-ver-b" title="Save current prompt as a named version">💾</button>
+                                <select class="version-select" id="version-select-b"><option value="">Versions…</option></select>
+                            </div>
                         </div>
                         <textarea id="prompt-b" placeholder="Paste your new/updated system prompt here..."></textarea>
                     </div>
@@ -155,6 +163,7 @@
                         <div class="test-file-actions">
                             <button class="btn-small" id="import-tests-btn" title="Import test suite">📥 Import</button>
                             <button class="btn-small" id="export-tests-btn" title="Export test suite">📤 Export</button>
+                            <button class="btn-small" id="import-csv-btn" title="Import test cases from CSV (one per line)">📋 CSV</button>
                         </div>
                         <div class="test-actions-sep"></div>
                         <button class="btn-add" id="add-test-btn">+ Add</button>
@@ -179,6 +188,7 @@
                     </div>
                 </div>
                 <input type="file" id="import-file-input" accept=".json" style="display:none;" />
+                <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none;" />
             </section>
 
             <!-- Step 4: Advanced Settings -->
@@ -216,6 +226,18 @@
                             </div>
                             <div class="setting-hint">Using a stronger or different model than the responder reduces self-evaluation bias.</div>
                         </div>
+                        <div class="setting-item">
+                            <label class="checkbox-label"><input type="checkbox" id="blind-mode-check" /> Blind Mode</label>
+                            <div class="setting-hint">Labels prompts "Version 1" &amp; "Version 2" to the judge — removes positional bias</div>
+                        </div>
+                        <div class="setting-item">
+                            <label class="checkbox-label"><input type="checkbox" id="temp-sweep-check" /> Temperature Sweep</label>
+                            <div class="setting-hint">After evaluation, charts scores for Test 1 across 5 temperatures (0–1)</div>
+                        </div>
+                        <div class="setting-item" style="grid-column: 1 / -1;">
+                            <label for="judge-persona">Custom Judge Instructions <span class="judge-badge">optional</span></label>
+                            <textarea id="judge-persona" class="judge-persona-input" placeholder="Extra instructions for the judge, e.g. 'Prioritise conciseness. Penalise verbose responses.' or 'You are evaluating customer-service agents.'"></textarea>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -225,6 +247,10 @@
                 <button class="btn-run" id="run-btn">
                     <span class="run-icon">⚡</span> Run Evaluation
                 </button>
+                <div class="run-extras">
+                    <button class="btn-small" id="share-setup-btn" title="Share criteria, prompts &amp; test cases as a link">🔗 Share Setup</button>
+                </div>
+                <p class="keyboard-hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> to toggle theme · <kbd>Esc</kbd> to close panels</p>
                 <p class="run-info" id="run-info"></p>
             </div>
 
@@ -233,6 +259,7 @@
                 <div class="progress-header">
                     <div class="spinner"></div>
                     <h3 id="progress-title">Evaluating...</h3>
+                    <button class="btn-cancel" id="cancel-btn" style="display:none;">✕ Cancel</button>
                 </div>
                 <div class="progress-bar-track">
                     <div class="progress-bar-fill" id="progress-bar"></div>
@@ -267,9 +294,12 @@
                     </div>
                     <div class="win-tally" id="win-tally"></div>
                     <div class="consistency-bar" id="consistency-bar" style="display:none;"></div>
+                    <div id="trend-chart-container" style="display:none;"></div>
                     <div class="judge-info" id="judge-info"></div>
                 </div>
 
+                <div id="radar-chart-container" class="glass-panel radar-container" style="display:none;"></div>
+                <div id="sweep-results-section" style="display:none;"></div>
                 <div id="results-container"></div>
             </section>
         </main>
