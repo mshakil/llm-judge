@@ -1,6 +1,6 @@
 // ============================================================
 // LLM Judge: Prompt A/B Test Evaluator (Full Edition)
-// Supports: Google Gemini + Anthropic Claude
+// Supports: Google Gemini + Anthropic Claude + OpenAI
 // Features: History, Export, Model Select, Temperature,
 //           Multi-Run Consistency, Import/Export Test Suites
 // ============================================================
@@ -21,6 +21,14 @@ const PROVIDERS = {
         keyName: 'claude_api_key',
         getKeyUrl: 'https://console.anthropic.com/settings/keys',
         getKeyText: 'Get a Claude API key →'
+    },
+    openai: {
+        name: 'OpenAI',
+        models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+        defaultModel: 'gpt-4o-mini',
+        keyName: 'openai_api_key',
+        getKeyUrl: 'https://platform.openai.com/api-keys',
+        getKeyText: 'Get an OpenAI API key →'
     }
 };
 
@@ -94,7 +102,7 @@ function anyEncryptedKey() {
 // ============================================================
 let activeProvider = localStorage.getItem('llm_judge_provider') || 'gemini';
 let activeModel = localStorage.getItem('llm_judge_model') || PROVIDERS[activeProvider].defaultModel;
-let apiKeys = { gemini: '', claude: '' }; // plaintext in memory only — never persisted
+let apiKeys = { gemini: '', claude: '', openai: '' }; // plaintext in memory only — never persisted
 let sessionPassphrase = '';
 let judgeProvider = localStorage.getItem('llm_judge_judge_provider') || activeProvider;
 let judgeModel = localStorage.getItem('llm_judge_judge_model') || PROVIDERS[judgeProvider].defaultModel;
@@ -466,7 +474,7 @@ async function attemptUnlock() {
         showToast('Keys unlocked!', 'success');
     } catch {
         showModalError('Incorrect passphrase. Please try again.');
-        apiKeys = { gemini: '', claude: '' };
+        apiKeys = Object.fromEntries(Object.keys(PROVIDERS).map(k => [k, '']));
         sessionPassphrase = '';
     } finally {
         btn.disabled = false;
@@ -665,11 +673,15 @@ async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
 
 async function callLLM(systemPrompt, userMessage, overrideTemp) {
     const temp = overrideTemp !== undefined ? overrideTemp : parseFloat(document.getElementById('temperature-slider').value);
-    return activeProvider === 'gemini' ? callGemini(systemPrompt, userMessage, temp) : callClaude(systemPrompt, userMessage, temp);
+    if (activeProvider === 'gemini') return callGemini(systemPrompt, userMessage, temp);
+    if (activeProvider === 'openai') return callOpenAI(systemPrompt, userMessage, temp);
+    return callClaude(systemPrompt, userMessage, temp);
 }
 
 async function callLLMJson(prompt) {
-    return activeProvider === 'gemini' ? callGeminiJson(prompt) : callClaudeJson(prompt);
+    if (activeProvider === 'gemini') return callGeminiJson(prompt);
+    if (activeProvider === 'openai') return callOpenAIJson(prompt);
+    return callClaudeJson(prompt);
 }
 
 // Gemini
@@ -706,6 +718,25 @@ async function callClaudeJson(prompt, model = activeModel) {
     const res = await fetchWithRetry(url, { method: 'POST', headers, body: JSON.stringify(body) });
     const data = await res.json();
     return parseJsonSafely('{' + (data.content?.[0]?.text || '}'));
+}
+
+// OpenAI
+async function callOpenAI(systemPrompt, userMessage, temp) {
+    const url = 'https://api.openai.com/v1/chat/completions';
+    const body = { model: activeModel, temperature: temp, max_tokens: 2048, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }] };
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKeys.openai}` };
+    const res = await fetchWithRetry(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || '[No response]';
+}
+
+async function callOpenAIJson(prompt, model = activeModel) {
+    const url = 'https://api.openai.com/v1/chat/completions';
+    const body = { model, temperature: 0.3, max_tokens: 2048, response_format: { type: 'json_object' }, messages: [{ role: 'user', content: prompt }] };
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKeys.openai}` };
+    const res = await fetchWithRetry(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    const data = await res.json();
+    return parseJsonSafely(data.choices?.[0]?.message?.content || '{}');
 }
 
 function parseJsonSafely(raw) {
@@ -767,9 +798,9 @@ ${criteriaJsonSchema}
   "reasoning": "One paragraph overall summary."
 }`;
 
-    return judgeProvider === 'gemini'
-        ? callGeminiJson(judgePrompt, judgeModel)
-        : callClaudeJson(judgePrompt, judgeModel);
+    if (judgeProvider === 'gemini') return callGeminiJson(judgePrompt, judgeModel);
+    if (judgeProvider === 'openai') return callOpenAIJson(judgePrompt, judgeModel);
+    return callClaudeJson(judgePrompt, judgeModel);
 }
 
 // ============================================================
