@@ -693,6 +693,12 @@ function parseJsonSafely(raw) {
 // Judge
 // ============================================================
 async function callJudge(criteria, testInput, responseA, responseB) {
+    const blindMode = document.getElementById('blind-mode-check')?.checked;
+    const extraPersona = document.getElementById('judge-persona')?.value.trim();
+
+    const labelA = blindMode ? 'Version 1' : 'Response A';
+    const labelB = blindMode ? 'Version 2' : 'Response B';
+
     const criteriaList = criteria.map((c, i) =>
         `${i + 1}. ${c.name}${c.description ? ' — ' + c.description : ''}`
     ).join('\n');
@@ -701,7 +707,9 @@ async function callJudge(criteria, testInput, responseA, responseB) {
         `    "${c.name}": { "scoreA": <0-10>, "scoreB": <0-10>, "reasoning": "<one sentence>" }`
     ).join(',\n');
 
-    const judgePrompt = `You are an impartial, expert LLM Output Evaluator. Score two AI responses on each criterion independently.
+    const personaPrefix = extraPersona ? `${extraPersona}\n\n` : '';
+
+    const judgePrompt = `${personaPrefix}You are an impartial, expert LLM Output Evaluator. Score two AI responses on each criterion independently.
 
 CRITERIA (score each 0–10 separately):
 ${criteriaList}
@@ -709,10 +717,10 @@ ${criteriaList}
 TEST INPUT:
 ${testInput}
 
-RESPONSE A:
+${labelA}:
 ${responseA}
 
-RESPONSE B:
+${labelB}:
 ${responseB}
 
 Evaluate strictly. Return ONLY valid JSON:
@@ -758,9 +766,13 @@ async function runEvaluation() {
     if (location.hash.startsWith('#share=')) history.replaceState(null, '', location.pathname);
     document.getElementById('share-banner').style.display = 'none';
 
+    cancelRequested = false;
     const runBtn = document.getElementById('run-btn');
     runBtn.disabled = true;
     runBtn.innerHTML = '<span class="run-icon">⏳</span> Running...';
+
+    const cancelBtn = document.getElementById('cancel-btn');
+    cancelBtn.style.display = 'inline-flex';
 
     const progressSection = document.getElementById('progress-section');
     progressSection.style.display = 'block';
@@ -783,14 +795,17 @@ async function runEvaluation() {
             const runResults = [];
 
             for (let run = 0; run < runsPerTest; run++) {
+                if (cancelRequested) throw new Error('__cancelled__');
                 const runLabel = runsPerTest > 1 ? ` (Run ${run + 1}/${runsPerTest})` : '';
                 document.getElementById('progress-title').textContent = `Test ${i + 1}/${testCases.length}${runLabel} · Responder: ${PROVIDERS[activeProvider].name}`;
 
                 updateProgress(`Prompt A → Test ${i + 1}${runLabel}`);
                 const responseA = await callLLM(promptA, testInput);
+                if (cancelRequested) throw new Error('__cancelled__');
 
                 updateProgress(`Prompt B → Test ${i + 1}${runLabel}`);
                 const responseB = await callLLM(promptB, testInput);
+                if (cancelRequested) throw new Error('__cancelled__');
 
                 updateProgress(`Judging with ${judgeModel}…`);
                 const judgment = await callJudge(criteria, testInput, responseA, responseB);
@@ -831,6 +846,14 @@ async function runEvaluation() {
             }
         }
 
+        // Optional temperature sweep (runs after main evaluation)
+        if (document.getElementById('temp-sweep-check')?.checked && testCases.length > 0 && !cancelRequested) {
+            document.getElementById('progress-section').style.display = 'block';
+            document.getElementById('progress-bar').style.width = '0%';
+            const sweepData = await runTempSweep(promptA, promptB, testCases[0], criteria);
+            renderSweepChart(sweepData);
+        }
+
         progressSection.style.display = 'none';
         lastResults = allResults;
         renderResults(allResults);
@@ -849,12 +872,18 @@ async function runEvaluation() {
         showToast('Evaluation complete!', 'success');
     } catch (err) {
         progressSection.style.display = 'none';
-        showToast(err.message.substring(0, 150), 'error');
-        console.error(err);
-        if (err.message.includes('401') || err.message.includes('403')) { updateApiStatus(false); showModal(); }
+        if (err.message === '__cancelled__') {
+            showToast('Evaluation cancelled.', 'info');
+        } else {
+            showToast(err.message.substring(0, 150), 'error');
+            console.error(err);
+            if (err.message.includes('401') || err.message.includes('403')) { updateApiStatus(false); showModal(); }
+        }
     } finally {
         runBtn.disabled = false;
         runBtn.innerHTML = '<span class="run-icon">⚡</span> Run Evaluation';
+        cancelBtn.style.display = 'none';
+        cancelRequested = false;
     }
 }
 
@@ -916,6 +945,11 @@ function renderResults(results) {
         ? `⚖️ Self-judged · <strong>${judgeModel}</strong>`
         : `⚖️ Judged by <strong>${judgeModel}</strong> <span style="color:var(--text-dim)">(${PROVIDERS[judgeProvider].name})</span>`;
 
+    // Charts
+    const criteria = getCriteria();
+    renderRadarChart(results, criteria);
+    renderTrendChart(results);
+
     // Cards
     const container = document.getElementById('results-container');
     container.innerHTML = '';
@@ -950,10 +984,15 @@ function renderResults(results) {
 
         const card = document.createElement('div');
         card.className = 'result-card';
+        card.dataset.idx = i;
         card.innerHTML = `
             <div class="result-card-header">
                 <span class="result-test-input">Test ${i + 1}: "${truncate(r.testInput, 70)}"</span>
-                <span class="result-winner-badge ${wClass}">${wText}</span>
+                <div class="result-header-actions">
+                    <button class="btn-small btn-diff-toggle" data-idx="${i}" title="Show word-level diff of the two responses">⇄ Diff</button>
+                    <span class="result-winner-badge ${wClass}">${wText}</span>
+                    <button class="btn-collapse" title="Collapse / expand">▾</button>
+                </div>
             </div>
             <div class="result-body">
                 <div class="result-col">
@@ -970,7 +1009,13 @@ function renderResults(results) {
                 </div>
             </div>
             ${criteriaBreakdownHtml}
-            <div class="result-reasoning"><h5>Judge's Reasoning</h5><p>${escapeHtml(j.reasoning||'')}</p></div>`;
+            <div class="result-reasoning"><h5>Judge's Reasoning</h5><p>${escapeHtml(j.reasoning||'')}</p></div>
+            <div class="word-diff-section" id="diff-${i}" style="display:none;">
+                <div class="diff-cols">
+                    <div class="diff-col"><div class="diff-col-label col-a">Prompt A response</div><div class="diff-text" id="diff-a-${i}"></div></div>
+                    <div class="diff-col"><div class="diff-col-label col-b">Prompt B response</div><div class="diff-text" id="diff-b-${i}"></div></div>
+                </div>
+            </div>`;
         container.appendChild(card);
     });
 
@@ -985,8 +1030,399 @@ function resetResults() {
     const section = document.getElementById('results-section');
     section.style.display = 'none';
     document.getElementById('results-container').innerHTML = '';
+    document.getElementById('radar-chart-container').style.display = 'none';
+    document.getElementById('trend-chart-container').style.display = 'none';
+    document.getElementById('sweep-results-section').style.display = 'none';
     if (location.hash.startsWith('#share=')) history.replaceState(null, '', location.pathname);
     document.getElementById('run-btn').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ============================================================
+// Result Card Interactions (collapse + word diff)
+// ============================================================
+function handleResultCardClick(e) {
+    const collapseBtn = e.target.closest('.btn-collapse');
+    if (collapseBtn) {
+        const card = collapseBtn.closest('.result-card');
+        card.classList.toggle('collapsed');
+        collapseBtn.textContent = card.classList.contains('collapsed') ? '▸' : '▾';
+        return;
+    }
+
+    const diffBtn = e.target.closest('.btn-diff-toggle');
+    if (diffBtn) {
+        const idx = parseInt(diffBtn.dataset.idx);
+        const diffSection = document.getElementById(`diff-${idx}`);
+        if (diffSection.style.display === 'none') {
+            const r = lastResults[idx];
+            const { htmlA, htmlB } = computeWordDiff(r.responseA, r.responseB);
+            document.getElementById(`diff-a-${idx}`).innerHTML = htmlA;
+            document.getElementById(`diff-b-${idx}`).innerHTML = htmlB;
+            diffSection.style.display = 'block';
+            diffBtn.textContent = '✕ Diff';
+            diffBtn.classList.add('active');
+        } else {
+            diffSection.style.display = 'none';
+            diffBtn.textContent = '⇄ Diff';
+            diffBtn.classList.remove('active');
+        }
+    }
+}
+
+// ============================================================
+// Word Diff (LCS-based)
+// ============================================================
+function computeWordDiff(textA, textB) {
+    const tokA = textA.split(/\s+/).filter(Boolean);
+    const tokB = textB.split(/\s+/).filter(Boolean);
+    const m = tokA.length, n = tokB.length;
+
+    // Build LCS DP table
+    const dp = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
+    for (let i = 1; i <= m; i++)
+        for (let j = 1; j <= n; j++)
+            dp[i][j] = tokA[i-1] === tokB[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+
+    // Backtrace
+    const ops = [];
+    let i = m, j = n;
+    while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && tokA[i-1] === tokB[j-1]) { ops.unshift(['=', tokA[i-1]]); i--; j--; }
+        else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) { ops.unshift(['+', tokB[j-1]]); j--; }
+        else { ops.unshift(['-', tokA[i-1]]); i--; }
+    }
+
+    let htmlA = '', htmlB = '';
+    ops.forEach(([op, word]) => {
+        const esc = escapeHtml(word);
+        if (op === '=') { htmlA += esc + ' '; htmlB += esc + ' '; }
+        else if (op === '-') { htmlA += `<del class="diff-del">${esc}</del> `; }
+        else { htmlB += `<ins class="diff-ins">${esc}</ins> `; }
+    });
+    return { htmlA: htmlA.trim(), htmlB: htmlB.trim() };
+}
+
+// ============================================================
+// Radar Chart (SVG spider chart)
+// ============================================================
+function renderRadarChart(results, criteria) {
+    const container = document.getElementById('radar-chart-container');
+    if (!results.length || criteria.length < 3) { container.style.display = 'none'; return; }
+
+    const W = 400, H = 400, cx = 200, cy = 200, R = 140;
+    const n = criteria.length;
+    const angles = criteria.map((_, k) => (k * 2 * Math.PI / n) - Math.PI / 2);
+
+    const avgA = criteria.map(c => {
+        const vals = results.map(r => r.judgment.criteria?.[c.name]?.scoreA).filter(v => v !== undefined && v !== null);
+        return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+    });
+    const avgB = criteria.map(c => {
+        const vals = results.map(r => r.judgment.criteria?.[c.name]?.scoreB).filter(v => v !== undefined && v !== null);
+        return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+    });
+
+    function pt(val, angle) {
+        const r = (val / 10) * R;
+        return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+    }
+    function poly(vals) {
+        return vals.map((v, k) => { const [x, y] = pt(v, angles[k]); return `${k === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`; }).join(' ') + ' Z';
+    }
+
+    const gridRings = [2, 4, 6, 8, 10].map(v => {
+        const r = (v / 10) * R;
+        const pts = angles.map(a => [cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+        const d = pts.map((p, k) => `${k === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ') + ' Z';
+        return `<path d="${d}" fill="none" stroke="var(--glass-border)" stroke-width="1"/>`;
+    }).join('');
+
+    const axisLines = angles.map((a, k) => {
+        const [x2, y2] = pt(10, a);
+        const lx = cx + (R + 22) * Math.cos(a), ly = cy + (R + 22) * Math.sin(a);
+        const anchor = Math.cos(a) > 0.15 ? 'start' : Math.cos(a) < -0.15 ? 'end' : 'middle';
+        return `<line x1="${cx}" y1="${cy}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="var(--glass-border)" stroke-width="1.5"/>
+                <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" fill="var(--text-muted)" font-size="11" text-anchor="${anchor}" dominant-baseline="middle">${escapeHtml(criteria[k].name)}</text>`;
+    }).join('');
+
+    const dotA = avgA.map((v, k) => { const [x, y] = pt(v, angles[k]); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="#3b82f6" stroke="var(--bg-surface)" stroke-width="1.5"/>`; }).join('');
+    const dotB = avgB.map((v, k) => { const [x, y] = pt(v, angles[k]); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="#f59e0b" stroke="var(--bg-surface)" stroke-width="1.5"/>`; }).join('');
+
+    container.innerHTML = `
+        <div class="radar-header">
+            <h3>Per-Criterion Radar</h3>
+            <div class="radar-legend">
+                <span style="color:#3b82f6">● Prompt A</span>
+                <span style="color:#f59e0b">● Prompt B</span>
+            </div>
+        </div>
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:380px;margin:0 auto;display:block">
+            ${gridRings}${axisLines}
+            <path d="${poly(avgA)}" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round"/>
+            <path d="${poly(avgB)}" fill="rgba(245,158,11,0.12)" stroke="#f59e0b" stroke-width="2" stroke-linejoin="round"/>
+            ${dotA}${dotB}
+        </svg>`;
+    container.style.display = 'block';
+}
+
+// ============================================================
+// Trend Chart (score line chart over test cases)
+// ============================================================
+function renderTrendChart(results) {
+    const container = document.getElementById('trend-chart-container');
+    if (results.length < 3) { container.style.display = 'none'; return; }
+
+    const W = 500, H = 70, pL = 28, pR = 10, pT = 6, pB = 6;
+    const cW = W - pL - pR, cH = H - pT - pB;
+    const n = results.length;
+    const scoresA = results.map(r => r.judgment.scoreA || 0);
+    const scoresB = results.map(r => r.judgment.scoreB || 0);
+
+    const xf = i => pL + (n === 1 ? cW / 2 : (i / (n - 1)) * cW);
+    const yf = v => pT + cH - (v / 10) * cH;
+
+    const ptsA = scoresA.map((v, i) => `${xf(i).toFixed(1)},${yf(v).toFixed(1)}`).join(' ');
+    const ptsB = scoresB.map((v, i) => `${xf(i).toFixed(1)},${yf(v).toFixed(1)}`).join(' ');
+
+    const yLabels = [0, 5, 10].map(v =>
+        `<text x="${pL - 3}" y="${yf(v).toFixed(1)}" fill="var(--text-dim)" font-size="8" text-anchor="end" dominant-baseline="middle">${v}</text>`
+    ).join('');
+
+    container.innerHTML = `<div class="trend-chart-wrap">
+        <span class="trend-label">Score Trend</span>
+        <svg viewBox="0 0 ${W} ${H}" style="flex:1;display:block;min-width:0">
+            <line x1="${pL}" y1="${pT}" x2="${pL}" y2="${pT+cH}" stroke="var(--glass-border)" stroke-width="1"/>
+            <line x1="${pL}" y1="${pT+cH}" x2="${pL+cW}" y2="${pT+cH}" stroke="var(--glass-border)" stroke-width="1"/>
+            ${yLabels}
+            <polyline points="${ptsA}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round"/>
+            <polyline points="${ptsB}" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linejoin="round"/>
+            ${scoresA.map((v, i) => `<circle cx="${xf(i).toFixed(1)}" cy="${yf(v).toFixed(1)}" r="3" fill="#3b82f6"/>`).join('')}
+            ${scoresB.map((v, i) => `<circle cx="${xf(i).toFixed(1)}" cy="${yf(v).toFixed(1)}" r="3" fill="#f59e0b"/>`).join('')}
+        </svg>
+        <div class="trend-legend">
+            <span style="color:#3b82f6;font-size:0.72rem">— A</span>
+            <span style="color:#f59e0b;font-size:0.72rem">— B</span>
+        </div>
+    </div>`;
+    container.style.display = 'block';
+}
+
+// ============================================================
+// Temperature Sweep
+// ============================================================
+async function runTempSweep(promptA, promptB, testInput, criteria) {
+    const temps = [0.0, 0.3, 0.5, 0.7, 1.0];
+    const sweepData = [];
+    const totalSteps = temps.length * 3;
+    let step = 0;
+
+    document.getElementById('progress-title').textContent = '🌡️ Temperature Sweep (Test 1)…';
+
+    for (const temp of temps) {
+        if (cancelRequested) break;
+        step++;
+        document.getElementById('progress-bar').style.width = Math.round((step / totalSteps) * 100) + '%';
+        document.getElementById('progress-detail').textContent = `Prompt A @ temp ${temp}`;
+        const respA = await callLLM(promptA, testInput, temp);
+
+        if (cancelRequested) break;
+        step++;
+        document.getElementById('progress-bar').style.width = Math.round((step / totalSteps) * 100) + '%';
+        document.getElementById('progress-detail').textContent = `Prompt B @ temp ${temp}`;
+        const respB = await callLLM(promptB, testInput, temp);
+
+        if (cancelRequested) break;
+        step++;
+        document.getElementById('progress-bar').style.width = Math.round((step / totalSteps) * 100) + '%';
+        document.getElementById('progress-detail').textContent = `Judging @ temp ${temp}`;
+        const j = await callJudge(criteria, testInput, respA, respB);
+
+        sweepData.push({ temp, scoreA: j.scoreA || 0, scoreB: j.scoreB || 0, winner: j.winner });
+    }
+    document.getElementById('progress-section').style.display = 'none';
+    return sweepData;
+}
+
+function renderSweepChart(sweepData) {
+    const section = document.getElementById('sweep-results-section');
+    if (!sweepData.length) { section.style.display = 'none'; return; }
+
+    const W = 480, H = 150, pL = 32, pR = 12, pT = 14, pB = 28;
+    const cW = W - pL - pR, cH = H - pT - pB;
+    const minT = sweepData[0].temp, maxT = sweepData[sweepData.length - 1].temp;
+
+    const tx = t => pL + ((t - minT) / (maxT - minT || 1)) * cW;
+    const ty = v => pT + cH - (v / 10) * cH;
+
+    const pathA = sweepData.map((d, i) => `${i === 0 ? 'M' : 'L'}${tx(d.temp).toFixed(1)},${ty(d.scoreA).toFixed(1)}`).join(' ');
+    const pathB = sweepData.map((d, i) => `${i === 0 ? 'M' : 'L'}${tx(d.temp).toFixed(1)},${ty(d.scoreB).toFixed(1)}`).join(' ');
+
+    const xLbl = sweepData.map(d => `<text x="${tx(d.temp).toFixed(1)}" y="${(pT+cH+14).toFixed(1)}" fill="var(--text-dim)" font-size="9" text-anchor="middle">${d.temp}</text>`).join('');
+    const yLbl = [0, 5, 10].map(v => `<text x="${pL - 4}" y="${ty(v).toFixed(1)}" fill="var(--text-dim)" font-size="9" text-anchor="end" dominant-baseline="middle">${v}</text>`).join('');
+
+    const dotsA = sweepData.map(d => `<circle cx="${tx(d.temp).toFixed(1)}" cy="${ty(d.scoreA).toFixed(1)}" r="4" fill="#3b82f6" stroke="var(--bg-surface)" stroke-width="1.5"/>`).join('');
+    const dotsB = sweepData.map(d => `<circle cx="${tx(d.temp).toFixed(1)}" cy="${ty(d.scoreB).toFixed(1)}" r="4" fill="#f59e0b" stroke="var(--bg-surface)" stroke-width="1.5"/>`).join('');
+
+    section.innerHTML = `<div class="glass-panel sweep-container">
+        <div class="sweep-header">
+            <h3>🌡️ Temperature Sweep — Test 1</h3>
+            <div class="sweep-legend">
+                <span style="color:#3b82f6">— Prompt A</span>
+                <span style="color:#f59e0b">— Prompt B</span>
+            </div>
+        </div>
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:480px;display:block;margin:0 auto">
+            <line x1="${pL}" y1="${pT}" x2="${pL}" y2="${pT+cH}" stroke="var(--glass-border)" stroke-width="1"/>
+            <line x1="${pL}" y1="${pT+cH}" x2="${pL+cW}" y2="${pT+cH}" stroke="var(--glass-border)" stroke-width="1"/>
+            ${yLbl}${xLbl}
+            <path d="${pathA}" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="${pathB}" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linejoin="round"/>
+            ${dotsA}${dotsB}
+        </svg>
+        <div class="sweep-scores">
+            ${sweepData.map(d => `<div class="sweep-temp-col">
+                <div class="sweep-temp-label">t=${d.temp}</div>
+                <div style="color:#3b82f6;font-weight:700">${typeof d.scoreA === 'number' ? d.scoreA.toFixed(1) : '—'}</div>
+                <div style="color:#f59e0b;font-weight:700">${typeof d.scoreB === 'number' ? d.scoreB.toFixed(1) : '—'}</div>
+            </div>`).join('')}
+        </div>
+    </div>`;
+    section.style.display = 'block';
+}
+
+// ============================================================
+// Prompt Versioning
+// ============================================================
+function getVersionsKey(slot) { return `llm_judge_versions_${slot}`; }
+
+function loadVersions(slot) {
+    try { return JSON.parse(localStorage.getItem(getVersionsKey(slot)) || '[]'); } catch { return []; }
+}
+
+function populateVersionSelect(slot) {
+    const select = document.getElementById(`version-select-${slot}`);
+    if (!select) return;
+    const versions = loadVersions(slot);
+    select.innerHTML = `<option value="">Versions… (${versions.length})</option>`;
+    versions.forEach((v, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `${v.name} · ${new Date(v.savedAt).toLocaleDateString()}`;
+        select.appendChild(opt);
+    });
+}
+
+function savePromptVersion(slot) {
+    const content = document.getElementById(`prompt-${slot}`).value.trim();
+    if (!content) { showToast('Prompt is empty — nothing to save.', 'error'); return; }
+    const name = window.prompt('Name this version:', `v${loadVersions(slot).length + 1} · ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`);
+    if (name === null) return;
+    const trimmed = name.trim() || `Version ${Date.now()}`;
+    const versions = loadVersions(slot);
+    versions.unshift({ name: trimmed, content, savedAt: Date.now() });
+    if (versions.length > 10) versions.pop();
+    localStorage.setItem(getVersionsKey(slot), JSON.stringify(versions));
+    populateVersionSelect(slot);
+    showToast(`Saved "${trimmed}"`, 'success');
+}
+
+function loadPromptVersion(slot, idx) {
+    if (idx === '') return;
+    const versions = loadVersions(slot);
+    const version = versions[parseInt(idx)];
+    if (!version) return;
+    document.getElementById(`prompt-${slot}`).value = version.content;
+    document.getElementById(`version-select-${slot}`).value = '';
+    showToast(`Loaded "${version.name}"`, 'success');
+}
+
+// ============================================================
+// CSV Import
+// ============================================================
+function importCsvTestCases(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const lines = e.target.result.split('\n')
+            .map(l => l.trim().replace(/^"(.*)"$/, '$1').replace(/""/g, '"'))
+            .filter(l => l.length > 0);
+        // Skip obvious header rows
+        const tests = lines.filter(l => !/^(input|test|question|prompt|case|query|user)/i.test(l));
+        if (!tests.length) { showToast('No test cases found in CSV.', 'error'); return; }
+        const container = document.getElementById('test-cases-container');
+        const existing = getTestCases();
+        const all = [...existing, ...tests];
+        container.innerHTML = '';
+        all.forEach((tc, i) => {
+            const row = document.createElement('div');
+            row.className = 'test-case-row';
+            row.innerHTML = `<span class="test-case-num">${i + 1}</span><input type="text" class="test-case-input" value="${escapeHtml(tc)}" /><button class="btn-remove" title="Remove">✕</button>`;
+            container.appendChild(row);
+        });
+        showToast(`Imported ${tests.length} test case${tests.length !== 1 ? 's' : ''} from CSV.`, 'success');
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
+// ============================================================
+// Share Setup Link
+// ============================================================
+async function generateSetupUrl() {
+    const btn = document.getElementById('share-setup-btn');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+    try {
+        const payload = {
+            v: 1, type: 'setup',
+            criteria: getCriteria(),
+            promptA: document.getElementById('prompt-a').value,
+            promptB: document.getElementById('prompt-b').value,
+            testCases: getTestCases()
+        };
+        const encoded = await compressToBase64Url(payload);
+        history.replaceState(null, '', `#setup=${encoded}`);
+        const url = `${location.origin}${location.pathname}#setup=${encoded}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            showToast('Setup link copied to clipboard!', 'success');
+        } catch {
+            showToast('Setup link updated in address bar — copy it from there.', 'info');
+        }
+    } catch (err) {
+        showToast('Could not generate setup link.', 'error');
+        console.error(err);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
+}
+
+// ============================================================
+// Keyboard Shortcuts
+// ============================================================
+function handleKeyboardShortcuts(e) {
+    // Ctrl+Enter → run evaluation
+    if (e.ctrlKey && !e.shiftKey && e.key === 'Enter') {
+        e.preventDefault();
+        const runBtn = document.getElementById('run-btn');
+        if (!runBtn.disabled) runBtn.click();
+        return;
+    }
+    // Ctrl+Shift+D → toggle theme
+    if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        toggleTheme();
+        return;
+    }
+    // Escape → close history panel (don't interfere with modal)
+    if (e.key === 'Escape') {
+        if (document.getElementById('history-panel').classList.contains('open')) {
+            closeHistory();
+        }
+    }
 }
 
 // ============================================================
@@ -1377,21 +1813,45 @@ async function generateShareUrl() {
 }
 
 async function loadFromShareUrl() {
-    if (!location.hash.startsWith('#share=')) return;
-    try {
-        const payload = await decompressFromBase64Url(location.hash.slice(7));
-        if (!payload?.results) return;
-        if (payload.criteria) renderCriteriaFromData(payload.criteria);
-        if (payload.promptA) document.getElementById('prompt-a').value = payload.promptA;
-        if (payload.promptB) document.getElementById('prompt-b').value = payload.promptB;
-        if (payload.meta?.judgeProvider) { judgeProvider = payload.meta.judgeProvider; syncJudgeProviderUI(); }
-        if (payload.meta?.judgeModel) { judgeModel = payload.meta.judgeModel; populateJudgeModelSelect(); }
-        lastResults = payload.results;
-        renderResults(payload.results);
-        showShareBanner(payload.meta);
-    } catch {
-        showToast('Could not load shared results. The link may be corrupted.', 'error');
-        history.replaceState(null, '', location.pathname);
+    if (location.hash.startsWith('#share=')) {
+        try {
+            const payload = await decompressFromBase64Url(location.hash.slice(7));
+            if (!payload?.results) return;
+            if (payload.criteria) renderCriteriaFromData(payload.criteria);
+            if (payload.promptA) document.getElementById('prompt-a').value = payload.promptA;
+            if (payload.promptB) document.getElementById('prompt-b').value = payload.promptB;
+            if (payload.meta?.judgeProvider) { judgeProvider = payload.meta.judgeProvider; syncJudgeProviderUI(); }
+            if (payload.meta?.judgeModel) { judgeModel = payload.meta.judgeModel; populateJudgeModelSelect(); }
+            lastResults = payload.results;
+            renderResults(payload.results);
+            showShareBanner(payload.meta);
+        } catch {
+            showToast('Could not load shared results. The link may be corrupted.', 'error');
+            history.replaceState(null, '', location.pathname);
+        }
+    } else if (location.hash.startsWith('#setup=')) {
+        try {
+            const payload = await decompressFromBase64Url(location.hash.slice(7));
+            if (!payload) return;
+            if (payload.criteria) renderCriteriaFromData(payload.criteria);
+            if (payload.promptA) document.getElementById('prompt-a').value = payload.promptA;
+            if (payload.promptB) document.getElementById('prompt-b').value = payload.promptB;
+            if (payload.testCases?.length) {
+                const container = document.getElementById('test-cases-container');
+                container.innerHTML = '';
+                payload.testCases.forEach((tc, i) => {
+                    const row = document.createElement('div');
+                    row.className = 'test-case-row';
+                    row.innerHTML = `<span class="test-case-num">${i + 1}</span><input type="text" class="test-case-input" value="${escapeHtml(tc)}" /><button class="btn-remove" title="Remove">✕</button>`;
+                    container.appendChild(row);
+                });
+            }
+            history.replaceState(null, '', location.pathname);
+            showToast('Setup loaded from shared link!', 'success');
+        } catch {
+            showToast('Could not load setup from link.', 'error');
+            history.replaceState(null, '', location.pathname);
+        }
     }
 }
 
