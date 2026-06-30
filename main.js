@@ -102,6 +102,35 @@ let lastResults = null;
 let cancelRequested = false;
 
 // ============================================================
+// CSV Import
+// ============================================================
+function importCsvTestCases(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const lines = e.target.result.split('\n')
+            .map(l => l.trim().replace(/^"(.*)"$/, '$1').replace(/""/g, '"'))
+            .filter(l => l.length > 0);
+        const tests = lines.filter(l => !/^(input|test|question|prompt|case|query|user)/i.test(l));
+        if (!tests.length) { showToast('No test cases found in CSV.', 'error'); return; }
+        const container = document.getElementById('test-cases-container');
+        const existing = getTestCases();
+        const all = [...existing, ...tests];
+        container.innerHTML = '';
+        all.forEach((tc, i) => {
+            const row = document.createElement('div');
+            row.className = 'test-case-row';
+            row.innerHTML = `<span class="test-case-num">${i + 1}</span><input type="text" class="test-case-input" value="${escapeHtml(tc)}" /><button class="btn-remove" title="Remove">✕</button>`;
+            container.appendChild(row);
+        });
+        showToast(`Imported ${tests.length} test case${tests.length !== 1 ? 's' : ''} from CSV.`, 'success');
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
+// ============================================================
 // DOM Ready
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -1334,36 +1363,6 @@ function loadPromptVersion(slot, idx) {
     document.getElementById(`prompt-${slot}`).value = version.content;
     document.getElementById(`version-select-${slot}`).value = '';
     showToast(`Loaded "${version.name}"`, 'success');
-}
-
-// ============================================================
-// CSV Import
-// ============================================================
-function importCsvTestCases(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const lines = e.target.result.split('\n')
-            .map(l => l.trim().replace(/^"(.*)"$/, '$1').replace(/""/g, '"'))
-            .filter(l => l.length > 0);
-        // Skip obvious header rows
-        const tests = lines.filter(l => !/^(input|test|question|prompt|case|query|user)/i.test(l));
-        if (!tests.length) { showToast('No test cases found in CSV.', 'error'); return; }
-        const container = document.getElementById('test-cases-container');
-        const existing = getTestCases();
-        const all = [...existing, ...tests];
-        container.innerHTML = '';
-        all.forEach((tc, i) => {
-            const row = document.createElement('div');
-            row.className = 'test-case-row';
-            row.innerHTML = `<span class="test-case-num">${i + 1}</span><input type="text" class="test-case-input" value="${escapeHtml(tc)}" /><button class="btn-remove" title="Remove">✕</button>`;
-            container.appendChild(row);
-        });
-        showToast(`Imported ${tests.length} test case${tests.length !== 1 ? 's' : ''} from CSV.`, 'success');
-    };
-    reader.readAsText(file);
-    event.target.value = '';
 }
 
 // ============================================================
