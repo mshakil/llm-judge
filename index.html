@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Judge — Prompt A/B Evaluator</title>
+    <meta name="description" content="Compare two LLM prompts side-by-side with automated AI-powered evaluation scoring.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- API Key Modal -->
+    <div class="modal-overlay" id="api-key-modal">
+        <div class="modal glass-panel" data-mode="setup">
+            <div class="modal-icon">🔑</div>
+            <h2 id="modal-title">Connect Your LLM</h2>
+            <p id="modal-desc">Select your AI provider and enter your API key. It will be encrypted with a passphrase before storage.</p>
+            <div id="modal-provider-section">
+                <div class="provider-tabs" id="modal-provider-tabs">
+                    <button class="provider-tab active" data-provider="gemini">
+                        <span class="provider-dot gemini-dot"></span> Gemini
+                    </button>
+                    <button class="provider-tab" data-provider="claude">
+                        <span class="provider-dot claude-dot"></span> Claude
+                    </button>
+                </div>
+                <a href="https://aistudio.google.com/apikey" target="_blank" class="get-key-link" id="get-key-link">Get a free Gemini API key →</a>
+                <div class="form-group">
+                    <input type="password" id="api-key-input" placeholder="Enter your API Key..." />
+                </div>
+            </div>
+            <div id="modal-passphrase-section">
+                <div class="form-group">
+                    <input type="password" id="passphrase-input" placeholder="Set a passphrase to encrypt your key..." />
+                </div>
+                <div class="form-group" id="passphrase-confirm-group">
+                    <input type="password" id="passphrase-confirm-input" placeholder="Confirm passphrase..." />
+                </div>
+            </div>
+            <p class="modal-error" id="modal-error"></p>
+            <button class="btn-primary" id="save-key-btn">Save & Continue</button>
+            <button class="btn-text-link" id="modal-enter-key-btn">Enter a different API key instead</button>
+        </div>
+    </div>
+
+    <!-- History Panel -->
+    <div class="history-overlay hidden" id="history-overlay"></div>
+    <aside class="history-panel glass-panel" id="history-panel">
+        <div class="history-header">
+            <h2>📜 Evaluation History</h2>
+            <button class="btn-icon" id="close-history-btn">✕</button>
+        </div>
+        <div class="history-list" id="history-list">
+            <div class="history-empty" id="history-empty">
+                <p>No evaluations yet. Run your first evaluation to see it here.</p>
+            </div>
+        </div>
+        <button class="btn-danger" id="clear-history-btn">Clear All History</button>
+    </aside>
+
+    <!-- Main App -->
+    <div class="app-wrapper">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <h1 class="logo">⚖️ LLM Judge</h1>
+                <span class="badge">Prompt A/B Evaluator</span>
+            </div>
+            <div class="top-bar-right">
+                <div class="provider-switch" id="top-provider-switch">
+                    <button class="provider-chip active" data-provider="gemini">
+                        <span class="provider-dot gemini-dot"></span> Gemini
+                    </button>
+                    <button class="provider-chip" data-provider="claude">
+                        <span class="provider-dot claude-dot"></span> Claude
+                    </button>
+                </div>
+                <select class="model-select" id="model-select"></select>
+                <span class="api-status" id="api-status">● Connected</span>
+                <button class="btn-icon" id="history-btn" title="History">📜</button>
+                <button class="btn-icon" id="change-key-btn" title="Change API Key">🔑</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Share Banner -->
+            <div class="share-banner glass-panel" id="share-banner" style="display:none;">
+                <div class="share-banner-content">
+                    <span class="share-banner-icon">🔗</span>
+                    <p id="share-banner-text"></p>
+                </div>
+                <button class="btn-icon" id="share-banner-close" title="Dismiss">✕</button>
+            </div>
+
+            <!-- Step 1: Evaluation Criteria -->
+            <section class="section glass-panel">
+                <div class="section-header">
+                    <span class="step-badge">1</span>
+                    <h2>Evaluation Criteria</h2>
+                    <button class="btn-add" id="add-criterion-btn" style="margin-left:auto;">+ Add</button>
+                </div>
+                <p class="section-desc">Each criterion is scored independently 0–10. Name it briefly; describe what makes a good response.</p>
+                <div class="criterion-header">
+                    <span>Name</span>
+                    <span>What to look for</span>
+                </div>
+                <div id="criteria-container">
+                    <div class="criterion-row">
+                        <input type="text" class="criterion-name" placeholder="e.g. Tone" />
+                        <input type="text" class="criterion-desc" placeholder="e.g. Professional and friendly throughout" />
+                        <button class="btn-remove" title="Remove">✕</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: Prompts Side-by-Side -->
+            <section class="section">
+                <div class="section-header">
+                    <span class="step-badge">2</span>
+                    <h2>Prompt Versions</h2>
+                </div>
+                <div class="prompt-grid">
+                    <div class="prompt-card glass-panel prompt-a">
+                        <div class="prompt-card-header">
+                            <span class="prompt-label label-a">Prompt A</span>
+                            <span class="prompt-tag">Baseline</span>
+                        </div>
+                        <textarea id="prompt-a" placeholder="Paste your current/baseline system prompt here..."></textarea>
+                    </div>
+                    <div class="prompt-card glass-panel prompt-b">
+                        <div class="prompt-card-header">
+                            <span class="prompt-label label-b">Prompt B</span>
+                            <span class="prompt-tag">Challenger</span>
+                        </div>
+                        <textarea id="prompt-b" placeholder="Paste your new/updated system prompt here..."></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 3: Test Cases -->
+            <section class="section glass-panel">
+                <div class="section-header">
+                    <span class="step-badge">3</span>
+                    <h2>Test Inputs</h2>
+                    <div class="test-actions">
+                        <button class="btn-small" id="import-tests-btn" title="Import test suite">📥 Import</button>
+                        <button class="btn-small" id="export-tests-btn" title="Export test suite">📤 Export</button>
+                        <button class="btn-add" id="add-test-btn">+ Add</button>
+                    </div>
+                </div>
+                <p class="section-desc">Provide user messages that will be sent to both prompts.</p>
+                <div id="test-cases-container">
+                    <div class="test-case-row">
+                        <span class="test-case-num">1</span>
+                        <input type="text" class="test-case-input" placeholder="e.g., What is your return policy?" />
+                        <button class="btn-remove" title="Remove">✕</button>
+                    </div>
+                    <div class="test-case-row">
+                        <span class="test-case-num">2</span>
+                        <input type="text" class="test-case-input" placeholder="e.g., I want to speak to a manager right now!" />
+                        <button class="btn-remove" title="Remove">✕</button>
+                    </div>
+                    <div class="test-case-row">
+                        <span class="test-case-num">3</span>
+                        <input type="text" class="test-case-input" placeholder="e.g., Can you help me hack into someone's account?" />
+                        <button class="btn-remove" title="Remove">✕</button>
+                    </div>
+                </div>
+                <input type="file" id="import-file-input" accept=".json" style="display:none;" />
+            </section>
+
+            <!-- Step 4: Advanced Settings -->
+            <section class="section glass-panel settings-panel">
+                <div class="section-header clickable" id="toggle-settings">
+                    <span class="step-badge">⚙</span>
+                    <h2>Advanced Settings</h2>
+                    <span class="chevron" id="settings-chevron">▼</span>
+                </div>
+                <div class="settings-body" id="settings-body">
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label for="temperature-slider">Temperature: <span id="temp-value">0.7</span></label>
+                            <input type="range" id="temperature-slider" min="0" max="1" step="0.1" value="0.7" />
+                            <div class="setting-hint">Lower = more deterministic, Higher = more creative</div>
+                        </div>
+                        <div class="setting-item">
+                            <label for="runs-per-test">Runs per Test Case: <span id="runs-value">1</span></label>
+                            <input type="range" id="runs-per-test" min="1" max="5" step="1" value="1" />
+                            <div class="setting-hint">Run >1 to calculate consistency scores</div>
+                        </div>
+                        <div class="setting-item" style="grid-column: 1 / -1;">
+                            <label>Judge Model <span class="judge-badge">scores outputs</span></label>
+                            <div class="judge-model-controls">
+                                <div class="provider-switch" id="judge-provider-switch">
+                                    <button class="provider-chip active" data-provider="gemini">
+                                        <span class="provider-dot gemini-dot"></span> Gemini
+                                    </button>
+                                    <button class="provider-chip" data-provider="claude">
+                                        <span class="provider-dot claude-dot"></span> Claude
+                                    </button>
+                                </div>
+                                <select class="model-select" id="judge-model-select"></select>
+                            </div>
+                            <div class="setting-hint">Using a stronger or different model than the responder reduces self-evaluation bias.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Run Button -->
+            <div class="run-section">
+                <button class="btn-run" id="run-btn">
+                    <span class="run-icon">⚡</span> Run Evaluation
+                </button>
+                <p class="run-info" id="run-info"></p>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-section glass-panel" id="progress-section" style="display: none;">
+                <div class="progress-header">
+                    <div class="spinner"></div>
+                    <h3 id="progress-title">Evaluating...</h3>
+                </div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progress-bar"></div>
+                </div>
+                <p class="progress-detail" id="progress-detail"></p>
+            </div>
+
+            <!-- Results -->
+            <section class="results-section" id="results-section" style="display: none;">
+                <div class="results-toolbar">
+                    <h2>📊 Results</h2>
+                    <div class="results-actions">
+                        <button class="btn-export" id="share-results-btn">🔗 Copy Link</button>
+                        <button class="btn-export" id="export-report-btn">📄 Export Report</button>
+                    </div>
+                </div>
+
+                <div class="summary-card glass-panel" id="summary-card">
+                    <div class="summary-grid">
+                        <div class="summary-stat">
+                            <span class="summary-label">Prompt A Avg Score</span>
+                            <span class="summary-value" id="avg-score-a">—</span>
+                        </div>
+                        <div class="summary-stat summary-vs">
+                            <span class="summary-verdict" id="summary-verdict">—</span>
+                        </div>
+                        <div class="summary-stat">
+                            <span class="summary-label">Prompt B Avg Score</span>
+                            <span class="summary-value" id="avg-score-b">—</span>
+                        </div>
+                    </div>
+                    <div class="win-tally" id="win-tally"></div>
+                    <div class="consistency-bar" id="consistency-bar" style="display:none;"></div>
+                    <div class="judge-info" id="judge-info"></div>
+                </div>
+
+                <div id="results-container"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
