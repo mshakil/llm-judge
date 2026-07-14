@@ -16,7 +16,7 @@ python -m http.server 8080
 
 The entire application is three files: `index.html` (structure), `style.css` (dark glassmorphism theme), and `main.js` (all logic).
 
-**Providers supported:** Google Gemini and Anthropic Claude. Both are called directly from the browser using their respective REST APIs. The Claude calls include `anthropic-dangerous-direct-browser-access: true` to bypass the CORS restriction.
+**Providers supported:** Google Gemini, Anthropic Claude, and OpenAI. All are called directly from the browser using their respective REST APIs. The Claude calls include `anthropic-dangerous-direct-browser-access: true` to bypass the CORS restriction.
 
 **Data flow for a single evaluation:**
 1. User fills in criteria, Prompt A, Prompt B, and test case inputs
@@ -26,25 +26,31 @@ The entire application is three files: `index.html` (structure), `style.css` (da
 
 **Key globals in `main.js`:**
 - `PROVIDERS` — static config (models list, API URLs, localStorage key names) for each provider
-- `activeProvider`, `activeModel`, `apiKeys` — runtime state, persisted to `localStorage`
+- `EVAL_CRITERIA` — static array of 39 built-in evaluation criteria `{ name, description }` used to populate the criteria dropdowns
+- `activeProvider`, `activeModel`, `apiKeys` — runtime state (`apiKeys` has keys for `gemini`, `claude`, `openai`); persisted to `localStorage` (encrypted)
 - `judgeProvider`, `judgeModel` — separate judge model selection, persisted to `localStorage`
 - `lastResults` — holds the most recent evaluation result for the Export Report feature
 - `cancelRequested` — boolean flag set by the Cancel button to abort an in-progress run
 - `sessionPassphrase` — passphrase held in memory only; never written to localStorage
 
-**JSON parsing for judge output:** `callClaudeJson()` uses prefill (`{ role: 'assistant', content: '{' }`) to coerce JSON output; `callGeminiJson()` uses `responseMimeType: 'application/json'`. Both funnel through `parseJsonSafely()` which tries direct parse, then code-fence extraction, then brace-index extraction as fallbacks.
+**Criteria management:** Each criterion row uses a `<select>` populated from `EVAL_CRITERIA` (39 options) and a readonly description input that auto-fills on selection. `syncCriterionOptions()` hides already-chosen criteria from all other rows' dropdowns. `addCriterion(name, desc)` adds a row and calls `syncCriterionOptions()`; the remove handler also calls it.
+
+**JSON parsing for judge output:** `callClaudeJson()` uses prefill (`{ role: 'assistant', content: '{' }`) to coerce JSON output; `callGeminiJson()` uses `responseMimeType: 'application/json'`; `callOpenAIJson()` uses `response_format: { type: 'json_object' }`. All three funnel through `parseJsonSafely()` which tries direct parse, then code-fence extraction, then brace-index extraction as fallbacks.
+
+**Error handling:** `friendlyApiError(status, body)` parses raw API error responses and returns a human-readable message (e.g. "Invalid API key — please re-enter your key using the 🔑 button." instead of the raw JSON). Called by `fetchWithRetry()` before throwing.
 
 **Persistence:** All state (API keys, provider/model selection, history up to 20 items) is in `localStorage`. No backend.
 
 **API key security:** Keys are encrypted with AES-GCM + PBKDF2 (100 000 iterations, SHA-256) via the Web Crypto API. The passphrase is kept only in memory (`sessionPassphrase`); the salt is stored in `localStorage` under `llm_judge_salt`. Legacy plain-text keys stored before encryption was added are loaded into memory on startup and migrated on next save.
 
-**Test suite import/export:** JSON format with fields `{ criteria, promptA, promptB, testCases[] }`. CSV import is also supported (one test case per line; header rows are auto-skipped).
+**Test suite import/export:** JSON format with fields `{ criteria, promptA, promptB, testCases[] }`. CSV import is also supported (one test case per line; header rows are auto-skipped). Criteria `name` values in imported JSON **must exactly match** an entry in `EVAL_CRITERIA` — the six bundled test suites under `test-suites/` follow this convention.
 
 ## Features
 
 | Feature | Description |
 |---|---|
-| Multi-provider | Google Gemini and Anthropic Claude; separate model pickers for responder and judge |
+| Multi-provider | Google Gemini, Anthropic Claude, and OpenAI; separate model pickers for responder and judge |
+| Criteria Dropdown | 39 built-in evaluation criteria selectable from a dropdown; description auto-fills; already-chosen criteria hidden from other rows |
 | Blind Mode | Labels prompts "Version 1 / 2" to the judge, eliminating positional bias |
 | Custom Judge Instructions | Extra freeform instructions prepended to the judge system prompt |
 | Temperature Sweep | After evaluation, charts average scores for Test Case 1 across temperatures 0–1 in 0.25 steps |

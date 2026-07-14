@@ -1,8 +1,8 @@
 {
   "criteria": [
-    { "name": "Correctness", "description": "The code is syntactically valid and solves the stated problem" },
-    { "name": "Clarity", "description": "The explanation is easy to follow for a junior developer" },
-    { "name": "Best Practices", "description": "Code follows conventions: meaningful names, no unnecessary complexity" }
+    { "name": "Code Correctness", "description": "Determines whether generated code is syntactically and logically correct and likely to execute successfully." },
+    { "name": "Clarity", "description": "Assesses whether the response is easy to read, understand, and logically organized." },
+    { "name": "Code Quality", "description": "Evaluates readability, maintainability, structure, naming conventions, and adherence to best practices." }
   ],
   "promptA": "You are a coding assistant. Answer programming questions with code examples.",
   "promptB": "You are a senior software engineer helping junior developers. For every question: (1) briefly explain the concept, (2) provide a clean, well-commented code example, (3) mention one common mistake to avoid.",

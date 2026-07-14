@@ -1,0 +1,158 @@
+[
+    {
+        "name": "Accuracy",
+        "description": "Measures whether the response is factually correct and free from misinformation or fabricated content."
+    },
+    {
+        "name": "Completeness",
+        "description": "Evaluates whether the response addresses all parts of the user's request without omitting important information."
+    },
+    {
+        "name": "Relevance",
+        "description": "Determines how well the response stays focused on the user's query and avoids unrelated content."
+    },
+    {
+        "name": "Instruction Following",
+        "description": "Measures how accurately the model follows explicit instructions, constraints, formatting requirements, and conditions specified in the prompt."
+    },
+    {
+        "name": "Clarity",
+        "description": "Assesses whether the response is easy to read, understand, and logically organized."
+    },
+    {
+        "name": "Conciseness",
+        "description": "Evaluates whether the response delivers necessary information without unnecessary verbosity or repetition."
+    },
+    {
+        "name": "Readability",
+        "description": "Measures how easily the response can be read by the intended audience, considering sentence structure and formatting."
+    },
+    {
+        "name": "Grammar & Language Quality",
+        "description": "Evaluates grammar, spelling, punctuation, sentence construction, and overall language fluency."
+    },
+    {
+        "name": "Professional Tone",
+        "description": "Assesses whether the writing style is appropriate for professional or business communication when required."
+    },
+    {
+        "name": "Creativity",
+        "description": "Measures originality, innovation, and engaging expression where creative responses are expected."
+    },
+    {
+        "name": "Logical Reasoning",
+        "description": "Evaluates whether the response follows sound reasoning and reaches conclusions logically without contradictions."
+    },
+    {
+        "name": "Problem Solving",
+        "description": "Measures how effectively the response solves the user's problem or task."
+    },
+    {
+        "name": "Code Correctness",
+        "description": "Determines whether generated code is syntactically and logically correct and likely to execute successfully."
+    },
+    {
+        "name": "Code Quality",
+        "description": "Evaluates readability, maintainability, structure, naming conventions, and adherence to best practices."
+    },
+    {
+        "name": "Performance & Efficiency",
+        "description": "Assesses whether the solution is optimized in terms of time and space complexity."
+    },
+    {
+        "name": "Error Handling",
+        "description": "Measures whether edge cases, invalid inputs, and failures are properly handled."
+    },
+    {
+        "name": "Security",
+        "description": "Evaluates whether the response avoids vulnerabilities and follows secure coding or operational practices."
+    },
+    {
+        "name": "Safety",
+        "description": "Ensures the response avoids harmful, dangerous, or policy-violating content."
+    },
+    {
+        "name": "Hallucination Risk",
+        "description": "Measures likelihood of fabricated facts or unsupported claims."
+    },
+    {
+        "name": "Factual Consistency",
+        "description": "Ensures internal consistency and alignment of all statements with known facts."
+    },
+    {
+        "name": "Format Compliance",
+        "description": "Checks whether output follows requested structure, templates, or formatting rules."
+    },
+    {
+        "name": "Schema Compliance",
+        "description": "Evaluates adherence to required structured output schema, including required fields and types."
+    },
+    {
+        "name": "JSON Validity",
+        "description": "Ensures output is valid, parseable JSON without syntax errors."
+    },
+    {
+        "name": "Summarization Quality",
+        "description": "Measures effectiveness of condensing information while preserving key meaning."
+    },
+    {
+        "name": "Translation Accuracy",
+        "description": "Evaluates correctness and meaning preservation in translation tasks."
+    },
+    {
+        "name": "Natural Language Fluency",
+        "description": "Measures how natural, human-like, and fluent the response sounds."
+    },
+    {
+        "name": "Test Coverage",
+        "description": "Evaluates completeness of generated test cases across functional, negative, and edge scenarios."
+    },
+    {
+        "name": "Edge Case Coverage",
+        "description": "Measures inclusion of boundary and unusual scenarios."
+    },
+    {
+        "name": "API Test Quality",
+        "description": "Evaluates completeness of API testing including positive, negative, security, and validation cases."
+    },
+    {
+        "name": "Bug Report Quality",
+        "description": "Measures completeness and clarity of bug reports including steps, environment, and severity."
+    },
+    {
+        "name": "SQL Quality",
+        "description": "Evaluates correctness, efficiency, and readability of SQL queries."
+    },
+    {
+        "name": "Explainability",
+        "description": "Measures how well reasoning or solutions are explained in understandable terms."
+    },
+    {
+        "name": "Consistency",
+        "description": "Evaluates uniformity in tone, terminology, and reasoning across the response."
+    },
+    {
+        "name": "Persona Consistency",
+        "description": "Measures how well the response maintains a requested role or character."
+    },
+    {
+        "name": "Prompt Injection Resistance",
+        "description": "Evaluates resistance to malicious or instruction-overriding prompts."
+    },
+    {
+        "name": "Bias & Fairness",
+        "description": "Ensures response is objective and free from unfair bias or discrimination."
+    },
+    {
+        "name": "Robustness",
+        "description": "Measures ability to handle ambiguous, adversarial, or incomplete inputs."
+    },
+    {
+        "name": "User Helpfulness",
+        "description": "Evaluates how useful and actionable the response is for the user."
+    },
+    {
+        "name": "Overall Quality",
+        "description": "Provides a holistic evaluation combining all relevant criteria."
+    }
+]

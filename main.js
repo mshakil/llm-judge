@@ -32,6 +32,48 @@ const PROVIDERS = {
     }
 };
 
+const EVAL_CRITERIA = [
+    { name: 'Accuracy', description: 'Measures whether the response is factually correct and free from misinformation or fabricated content.' },
+    { name: 'Completeness', description: "Evaluates whether the response addresses all parts of the user's request without omitting important information." },
+    { name: 'Relevance', description: "Determines how well the response stays focused on the user's query and avoids unrelated content." },
+    { name: 'Instruction Following', description: 'Measures how accurately the model follows explicit instructions, constraints, formatting requirements, and conditions specified in the prompt.' },
+    { name: 'Clarity', description: 'Assesses whether the response is easy to read, understand, and logically organized.' },
+    { name: 'Conciseness', description: 'Evaluates whether the response delivers necessary information without unnecessary verbosity or repetition.' },
+    { name: 'Readability', description: 'Measures how easily the response can be read by the intended audience, considering sentence structure and formatting.' },
+    { name: 'Grammar & Language Quality', description: 'Evaluates grammar, spelling, punctuation, sentence construction, and overall language fluency.' },
+    { name: 'Professional Tone', description: 'Assesses whether the writing style is appropriate for professional or business communication when required.' },
+    { name: 'Creativity', description: 'Measures originality, innovation, and engaging expression where creative responses are expected.' },
+    { name: 'Logical Reasoning', description: 'Evaluates whether the response follows sound reasoning and reaches conclusions logically without contradictions.' },
+    { name: 'Problem Solving', description: "Measures how effectively the response solves the user's problem or task." },
+    { name: 'Code Correctness', description: 'Determines whether generated code is syntactically and logically correct and likely to execute successfully.' },
+    { name: 'Code Quality', description: 'Evaluates readability, maintainability, structure, naming conventions, and adherence to best practices.' },
+    { name: 'Performance & Efficiency', description: 'Assesses whether the solution is optimized in terms of time and space complexity.' },
+    { name: 'Error Handling', description: 'Measures whether edge cases, invalid inputs, and failures are properly handled.' },
+    { name: 'Security', description: 'Evaluates whether the response avoids vulnerabilities and follows secure coding or operational practices.' },
+    { name: 'Safety', description: 'Ensures the response avoids harmful, dangerous, or policy-violating content.' },
+    { name: 'Hallucination Risk', description: 'Measures likelihood of fabricated facts or unsupported claims.' },
+    { name: 'Factual Consistency', description: 'Ensures internal consistency and alignment of all statements with known facts.' },
+    { name: 'Format Compliance', description: 'Checks whether output follows requested structure, templates, or formatting rules.' },
+    { name: 'Schema Compliance', description: 'Evaluates adherence to required structured output schema, including required fields and types.' },
+    { name: 'JSON Validity', description: 'Ensures output is valid, parseable JSON without syntax errors.' },
+    { name: 'Summarization Quality', description: 'Measures effectiveness of condensing information while preserving key meaning.' },
+    { name: 'Translation Accuracy', description: 'Evaluates correctness and meaning preservation in translation tasks.' },
+    { name: 'Natural Language Fluency', description: 'Measures how natural, human-like, and fluent the response sounds.' },
+    { name: 'Test Coverage', description: 'Evaluates completeness of generated test cases across functional, negative, and edge scenarios.' },
+    { name: 'Edge Case Coverage', description: 'Measures inclusion of boundary and unusual scenarios.' },
+    { name: 'API Test Quality', description: 'Evaluates completeness of API testing including positive, negative, security, and validation cases.' },
+    { name: 'Bug Report Quality', description: 'Measures completeness and clarity of bug reports including steps, environment, and severity.' },
+    { name: 'SQL Quality', description: 'Evaluates correctness, efficiency, and readability of SQL queries.' },
+    { name: 'Explainability', description: 'Measures how well reasoning or solutions are explained in understandable terms.' },
+    { name: 'Consistency', description: 'Evaluates uniformity in tone, terminology, and reasoning across the response.' },
+    { name: 'Persona Consistency', description: 'Measures how well the response maintains a requested role or character.' },
+    { name: 'Prompt Injection Resistance', description: 'Evaluates resistance to malicious or instruction-overriding prompts.' },
+    { name: 'Bias & Fairness', description: 'Ensures response is objective and free from unfair bias or discrimination.' },
+    { name: 'Robustness', description: 'Measures ability to handle ambiguous, adversarial, or incomplete inputs.' },
+    { name: 'User Helpfulness', description: 'Evaluates how useful and actionable the response is for the user.' },
+    { name: 'Overall Quality', description: 'Provides a holistic evaluation combining all relevant criteria.' }
+];
+
 const HISTORY_KEY = 'llm_judge_history';
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 2000;
@@ -180,11 +222,13 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('llm_judge_model', activeModel);
     });
 
-    // Criteria
+    // Criteria — seed the first row (container is empty in HTML)
+    addCriterion();
     document.getElementById('add-criterion-btn').addEventListener('click', () => addCriterion());
     document.getElementById('criteria-container').addEventListener('click', (e) => {
         if (e.target.closest('.btn-remove') && document.querySelectorAll('#criteria-container .criterion-row').length > 1) {
             e.target.closest('.criterion-row').remove();
+            syncCriterionOptions();
         }
     });
 
@@ -526,14 +570,54 @@ function getCriteria() {
     })).filter(c => c.name);
 }
 
+function syncCriterionOptions() {
+    const rows = Array.from(document.querySelectorAll('#criteria-container .criterion-row'));
+    const selected = new Set(rows.map(r => r.querySelector('.criterion-name').value).filter(v => v));
+    rows.forEach(row => {
+        const sel = row.querySelector('.criterion-name');
+        const own = sel.value;
+        Array.from(sel.options).forEach(opt => {
+            if (!opt.value) return;
+            opt.hidden = selected.has(opt.value) && opt.value !== own;
+        });
+    });
+}
+
 function addCriterion(name = '', desc = '') {
     const container = document.getElementById('criteria-container');
     const row = document.createElement('div');
     row.className = 'criterion-row';
-    row.innerHTML = `<input type="text" class="criterion-name" placeholder="e.g. Tone" /><input type="text" class="criterion-desc" placeholder="e.g. Professional and friendly throughout" /><button class="btn-remove" title="Remove">✕</button>`;
-    row.querySelector('.criterion-name').value = name;
-    row.querySelector('.criterion-desc').value = desc;
+    row.innerHTML = `<select class="criterion-name"></select><input type="text" class="criterion-desc" readonly placeholder="Select a criterion to see its description" /><button class="btn-remove" title="Remove">✕</button>`;
+
+    const sel = row.querySelector('.criterion-name');
+    const inp = row.querySelector('.criterion-desc');
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select criterion…';
+    sel.appendChild(placeholder);
+
+    EVAL_CRITERIA.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.name;
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+    });
+
+    sel.addEventListener('change', () => {
+        const found = EVAL_CRITERIA.find(c => c.name === sel.value);
+        inp.value = found ? found.description : '';
+        syncCriterionOptions();
+    });
+
+    if (name) {
+        sel.value = name;
+        const found = EVAL_CRITERIA.find(c => c.name === name);
+        inp.value = found ? found.description : desc;
+    }
+
     container.appendChild(row);
+    syncCriterionOptions();
 }
 
 function renderCriteriaFromData(arr) {
@@ -657,17 +741,38 @@ function loadHistoryItem(item) {
 // ============================================================
 // API Calls with Retry
 // ============================================================
+function friendlyApiError(status, body) {
+    let apiMsg = '';
+    try { const p = JSON.parse(body); apiMsg = p?.error?.message || p?.message || ''; } catch {}
+    const low = apiMsg.toLowerCase();
+    if (low.includes('api key') || low.includes('api_key') || status === 401)
+        return 'Invalid API key — please re-enter your key using the 🔑 button.';
+    if (low.includes('quota') || low.includes('billing') || low.includes('insufficient_quota'))
+        return 'API quota or billing limit reached — check your account at the provider dashboard.';
+    if (low.includes('model') && (low.includes('not found') || low.includes('does not exist')))
+        return 'Model not found — try selecting a different model.';
+    if (low.includes('content') && (low.includes('policy') || low.includes('filter') || low.includes('safety')))
+        return 'Request blocked by content policy — try rephrasing your prompt.';
+    if (status === 400) return apiMsg ? `Bad request: ${apiMsg}` : 'Bad request — check your prompt or settings.';
+    if (status === 403) return 'Access denied — your API key may lack permission for this model.';
+    if (status === 404) return 'Model not found — try selecting a different model.';
+    if (status === 429) return 'Rate limit reached — please wait a moment and try again.';
+    if (status === 500) return 'The AI provider had an internal error — please try again shortly.';
+    if (status === 503) return 'The AI provider is temporarily unavailable — please try again shortly.';
+    return apiMsg || `Request failed (HTTP ${status}) — please try again.`;
+}
+
 async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
     for (let attempt = 0; attempt <= retries; attempt++) {
         const res = await fetch(url, options);
         if (res.ok) return res;
         if (res.status === 429 && attempt < retries) {
-            showToast(`Rate limited. Retrying in ${RETRY_DELAY_MS / 1000}s... (${attempt + 1}/${retries})`, 'info');
+            showToast(`Rate limited. Retrying in ${RETRY_DELAY_MS / 1000}s… (${attempt + 1}/${retries})`, 'info');
             await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (attempt + 1)));
             continue;
         }
         const errText = await res.text();
-        throw new Error(`API Error (${res.status}): ${errText}`);
+        throw new Error(friendlyApiError(res.status, errText));
     }
 }
 
@@ -935,7 +1040,7 @@ async function runEvaluation() {
         if (err.message === '__cancelled__') {
             showToast('Evaluation cancelled.', 'info');
         } else {
-            showToast(err.message.substring(0, 150), 'error');
+            showToast(err.message, 'error');
             console.error(err);
             if (err.message.includes('401') || err.message.includes('403')) { updateApiStatus(false); showModal(); }
         }

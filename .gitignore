@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Playwright test artifacts
+.playwright-mcp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files (never commit API keys)
+.env
+.env.local
+.env.*.local
+
+# Build output (none currently, but future-proofing)
+dist/
+out/

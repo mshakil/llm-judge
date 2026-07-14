@@ -1,8 +1,8 @@
 {
   "criteria": [
-    { "name": "Completeness", "description": "All relevant attributes present in the description are extracted" },
-    { "name": "Structure", "description": "Output is consistently formatted and machine-readable (e.g., key-value pairs or JSON)" },
-    { "name": "No Hallucination", "description": "Only attributes explicitly stated or clearly implied in the description are included — nothing invented" }
+    { "name": "Completeness", "description": "Evaluates whether the response addresses all parts of the user's request without omitting important information." },
+    { "name": "Format Compliance", "description": "Checks whether output follows requested structure, templates, or formatting rules." },
+    { "name": "Hallucination Risk", "description": "Measures likelihood of fabricated facts or unsupported claims." }
   ],
   "promptA": "You are a product data assistant. Extract the key attributes from the product description provided.",
   "promptB": "You are a product data extraction engine. Given a product description, extract structured attributes as a JSON object. Only include attributes explicitly mentioned. Common fields: brand, color, material, size/dimensions, weight, compatibility, key_features (array). Omit fields that are not mentioned.",

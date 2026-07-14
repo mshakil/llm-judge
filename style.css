@@ -227,9 +227,20 @@ textarea { resize: vertical; }
 .criterion-header,
 .criterion-row {
     display: grid;
-    grid-template-columns: 160px 1fr 30px;
+    grid-template-columns: 220px 1fr 30px;
     gap: 8px;
     align-items: center;
+}
+
+.criterion-desc[readonly] {
+    opacity: 0.75;
+    cursor: default;
+    background: var(--surface-inset, rgba(0,0,0,0.15));
+}
+
+.criterion-name option {
+    background: var(--select-option-bg);
+    color: var(--text-main);
 }
 
 .criterion-header {

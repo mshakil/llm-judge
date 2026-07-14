@@ -1,6 +1,6 @@
 # LLM Judge — Prompt A/B Evaluator
 
-A zero-dependency, browser-only tool for comparing two LLM prompts side-by-side using automated AI-powered scoring. No backend, no build step, no sign-up.
+A zero-dependency, browser-only tool for comparing two LLM prompts side-by-side using automated AI-powered scoring. Supports Google Gemini, Anthropic Claude, and OpenAI. No backend, no build step, no sign-up.
 
 ## Quick Start
 
@@ -16,7 +16,7 @@ Enter your API key on first launch and start evaluating immediately.
 
 ## How It Works
 
-1. **Define criteria** — Add named evaluation dimensions (e.g. "Tone", "Accuracy") with a description of what makes a good response. Each is scored 0–10.
+1. **Define criteria** — Pick from 39 built-in evaluation dimensions (e.g. "Accuracy", "Clarity", "Code Quality"). The description auto-fills so you know exactly what the judge is measuring. Each criterion is scored 0–10.
 2. **Write two prompts** — Paste your baseline system prompt as Prompt A and your revised version as Prompt B.
 3. **Add test cases** — Provide user messages that both prompts will receive.
 4. **Run** — The tool calls the LLM twice per test case (once per prompt), then calls a judge model to score both responses against every criterion.
@@ -28,13 +28,14 @@ Enter your API key on first launch and start evaluating immediately.
 |---|---|
 | Google Gemini | gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-pro |
 | Anthropic Claude | claude-haiku-4-5, claude-sonnet-4, claude-opus-4 |
+| OpenAI | gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo |
 
 You can use a different model as the **judge** than the one generating responses — recommended to reduce self-evaluation bias.
 
 ## Features
 
 ### Evaluation
-- **Multi-criterion scoring** — define any number of named criteria, each scored 0–10
+- **Multi-criterion scoring** — choose from 39 built-in criteria; descriptions auto-fill; already-selected criteria are hidden from other rows to prevent duplicates
 - **Runs per test case** — run 1–5 times per test case to measure consistency
 - **Blind Mode** — labels prompts "Version 1" and "Version 2" to the judge to remove positional bias
 - **Custom Judge Instructions** — prepend extra instructions to the judge system prompt (e.g. "Prioritise conciseness")
@@ -51,7 +52,7 @@ You can use a different model as the **judge** than the one generating responses
 - **Share Setup** — encodes criteria, prompts, and test cases into a shareable URL
 - **Share Results** — encodes full evaluation results into a URL
 - **Export Report** — generates a standalone self-contained HTML file with all scores, responses, and reasoning
-- **Import/Export test suite** — JSON format (`{ criteria, promptA, promptB, testCases[] }`)
+- **Import/Export test suite** — JSON format (`{ criteria, promptA, promptB, testCases[] }`); six ready-made suites included in `test-suites/`
 - **CSV Import** — import test cases from a plain `.csv` or `.txt` file (one per line; header rows auto-skipped)
 
 ### Prompt Management
@@ -85,3 +86,4 @@ All state is persisted to `localStorage`. There is no backend, no network calls 
 
 - **Google Gemini** — get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
 - **Anthropic Claude** — get a key at [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
+- **OpenAI** — get a key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)

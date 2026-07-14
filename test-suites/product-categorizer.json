@@ -1,8 +1,8 @@
 {
   "criteria": [
-    { "name": "Accuracy", "description": "The assigned category and subcategory are correct for the product" },
-    { "name": "Specificity", "description": "Uses the most precise subcategory available, not a vague parent category" },
-    { "name": "Reasoning", "description": "Briefly explains why the category was chosen, especially for ambiguous items" }
+    { "name": "Accuracy", "description": "Measures whether the response is factually correct and free from misinformation or fabricated content." },
+    { "name": "Relevance", "description": "Determines how well the response stays focused on the user's query and avoids unrelated content." },
+    { "name": "Explainability", "description": "Measures how well reasoning or solutions are explained in understandable terms." }
   ],
   "promptA": "You are a product categorization assistant. Given a product name or description, assign it to the most appropriate category.",
   "promptB": "You are a product categorization engine for an ecommerce platform. For each product, return: (1) a top-level category, (2) a subcategory, and (3) one sentence explaining your choice. Use the most specific subcategory possible. When a product could belong to multiple categories, pick the one that matches its primary use case.",
