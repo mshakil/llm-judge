@@ -87,3 +87,4 @@ All state is persisted to `localStorage`. There is no backend, no network calls 
 - **Google Gemini** — get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
 - **Anthropic Claude** — get a key at [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
 - **OpenAI** — get a key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+- Testing mergx
